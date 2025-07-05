@@ -1,13 +1,20 @@
 package com.example.quizgame.controller;
 
-import com.example.quizgame.dto.*;
+import com.example.quizgame.dto.ApiResponse;
+import com.example.quizgame.dto.request.*;
+import com.example.quizgame.dto.response.UserResponse;
+import com.example.quizgame.entity.User;
+import com.example.quizgame.exceptions.UserAlreadyExistException;
 import com.example.quizgame.security.JwtUtil;
 import com.example.quizgame.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -20,11 +27,13 @@ public class AuthController {
     @Autowired private UserService userService;
     @Autowired private JwtUtil jwtUtil;
 
+    @Autowired
+    private MessageSource messageSource;
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        return userService.register(request);
-    }
+    public ResponseEntity<ApiResponse<UserResponse>> register(@RequestBody RegisterRequest request) throws UserAlreadyExistException{
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.register(request));
 
+    }
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         Authentication auth = authManager.authenticate(

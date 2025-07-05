@@ -1,12 +1,12 @@
-package com.example.quizgame.dto;
+package com.example.quizgame.dto.request;
 
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
-public class VerifyCodeRequest {
+public class ChangePasswordRequest {
     private String username;
-    private String code;
+    private String oldPassword;
     private String newPassword;
 }

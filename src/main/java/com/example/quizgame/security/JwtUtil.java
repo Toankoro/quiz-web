@@ -2,7 +2,9 @@ package com.example.quizgame.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -12,21 +14,28 @@ import java.util.Date;
 
 @Component
 public class JwtUtil {
-    private final Key key = Keys.hmacShaKeyFor(
-            "my-super-secret-jwt-key-which-is-long-enough-123456".getBytes(StandardCharsets.UTF_8)
-    );
+    @Value("${jwt.secret.key}")
+    private String jwtSecret;
+
+    @Value("${jwt.expiration}")
+    private Long jwtExpiration;
+
+    private Key getSignInKey () {
+        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
 
     public String generateToken(String username) {
         return Jwts.builder()
                 .setSubject(username)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 86400000))
-                .signWith(key, SignatureAlgorithm.HS256)
+                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public String extractUsername(String token) {
-        return Jwts.parserBuilder().setSigningKey(key).build()
+        return Jwts.parserBuilder().setSigningKey(getSignInKey()).build()
                 .parseClaimsJws(token).getBody().getSubject();
     }
 
