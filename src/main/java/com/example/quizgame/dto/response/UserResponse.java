@@ -12,14 +12,12 @@ public class UserResponse {
     private String username;
     private String email;
     private String firstname;
-    private String lastname;
 
     public static UserResponse fromUserToUserResponse (User user) {
         return UserResponse.builder()
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .firstname(user.getFirstname())
-                .lastname(user.getLastname())
                 .build();
     }
 

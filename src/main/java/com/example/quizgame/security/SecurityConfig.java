@@ -1,5 +1,7 @@
 package com.example.quizgame.security;
 
+import com.example.quizgame.service.UserService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,8 +20,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig {
     @Bean
-    public JwtFilter jwtFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
-        return new JwtFilter(jwtUtil, userDetailsService);
+    public JwtFilter jwtFilter(JwtUtil jwtUtil, UserService userService) {
+        return new JwtFilter(jwtUtil, userService);
     }
 
     @Bean
@@ -29,6 +31,7 @@ public class SecurityConfig {
                         .requestMatchers( "/auth/register", "/auth/**", "/ws/**").permitAll()
                         .requestMatchers("/usersAddNew", "/resources/**", "/css/**", "/fonts/**", "/img/**", "/js/**").permitAll()
                         .requestMatchers("/register/verify", "/resources/**", "/css/**", "/fonts/**", "/img/**", "/js/**").permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
 
                 )
@@ -42,9 +45,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(HttpSecurity http, PasswordEncoder encoder, UserDetailsService userDetailsService) throws Exception {
+    public AuthenticationManager authenticationManager(HttpSecurity http, PasswordEncoder encoder,  UserService userService) throws Exception {
         AuthenticationManagerBuilder builder = http.getSharedObject(AuthenticationManagerBuilder.class);
-        builder.userDetailsService(userDetailsService).passwordEncoder(encoder);
+        builder.userDetailsService(userService).passwordEncoder(encoder);
         return builder.build();
     }
 

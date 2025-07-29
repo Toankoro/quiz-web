@@ -9,11 +9,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class RegisterRequest {
-    @NotBlank(message = "Không được để trống thông tin")
-    private String firstname;
-
-    @NotBlank(message = "Không được để trống thông tin")
-    private String lastname;
 
     @NotBlank(message = "Không được để trống thông tin")
     private String username;

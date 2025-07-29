@@ -16,7 +16,7 @@ public class DefaultSecureTokenService implements SecureTokenService{
 
     private static BytesKeyGenerator DEFAULT_TOKEN_GENERATOR = KeyGenerators.secureRandom(12);
 
-    @Value("2800")
+    @Value("300")
     private int tokenValidityInSeconds;
 
     @Autowired

@@ -17,10 +17,7 @@ public class ChatMessage {
     @Lob
     @Column(columnDefinition = "LONGBLOB")
     private String content;
-    private String type; // TEXT, FILE, EMOJI
     private String groupName;
-    private String fileName;
-    private String fileType;
     private LocalDateTime timestamp = LocalDateTime.now();
 
     @ManyToOne
