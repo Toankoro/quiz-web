@@ -1,0 +1,572 @@
+ * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .join-container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+        width: 100%;
+        max-width: 500px;
+        text-align: center;
+      }
+
+      .logo {
+        margin-bottom: 30px;
+      }
+
+      .logo i {
+        font-size: 4em;
+        color: #ff6b6b;
+        margin-bottom: 15px;
+      }
+
+      .logo h1 {
+        font-size: 2.5em;
+        color: #333;
+        margin-bottom: 10px;
+      }
+
+      .logo p {
+        color: #666;
+        font-size: 1.1em;
+      }
+
+      .form-group {
+        margin-bottom: 25px;
+        text-align: left;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #555;
+        font-size: 1.1em;
+      }
+
+      .form-group input {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+      }
+
+      .form-group input:focus {
+        outline: none;
+        border-color: #ff6b6b;
+        box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+      }
+
+      .btn {
+        background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(255, 107, 107, 0.3);
+      }
+
+      .btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .btn-secondary {
+        background: linear-gradient(45deg, #74b9ff, #0984e3);
+        margin-top: 15px;
+      }
+
+      .status {
+        padding: 15px;
+        border-radius: 10px;
+        margin: 15px 0;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .status.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .status.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .status.info {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+
+      .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #ff6b6b;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .room-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        margin: 20px 0;
+        display: none;
+      }
+
+      .room-info h4 {
+        margin-bottom: 15px;
+        font-size: 1.3em;
+      }
+
+      .room-code {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 15px;
+        border-radius: 10px;
+        font-weight: bold;
+        font-size: 1.5em;
+        text-align: center;
+        margin: 15px 0;
+      }
+
+      .players-list {
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 15px;
+        padding: 20px;
+        margin: 20px 0;
+        display: none;
+      }
+
+      .players-list h4 {
+        color: #333;
+        margin-bottom: 15px;
+        font-size: 1.3em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .player-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        border-bottom: 1px solid #f0f0f0;
+        transition: all 0.3s ease;
+      }
+
+      .player-item:hover {
+        background: #f8f9fa;
+      }
+
+      .player-item:last-child {
+        border-bottom: none;
+      }
+
+      .player-name {
+        font-weight: 600;
+        color: #333;
+      }
+
+      .player-status {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        font-weight: 600;
+      }
+
+      .status-online {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .status-offline {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .back-link {
+        margin-top: 20px;
+        text-align: center;
+      }
+
+      .back-link a {
+        color: #ff6b6b;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+      }
+
+      .back-link a:hover {
+        color: #ee5a24;
+        transform: translateX(-5px);
+      }
+
+      /* Game Section Styles */
+      .game-section {
+        margin-top: 30px;
+        padding: 30px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .question-container {
+        margin-bottom: 30px;
+      }
+
+      .question-container h3 {
+        color: #333;
+        margin-bottom: 20px;
+        text-align: center;
+        font-size: 1.5em;
+      }
+
+      .question-content {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        font-size: 1.1em;
+        line-height: 1.6;
+      }
+
+      .answer-options {
+        display: grid;
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      .answer-btn {
+        display: flex;
+        align-items: center;
+        padding: 15px 20px;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: left;
+        font-size: 1em;
+      }
+
+      .answer-btn:hover {
+        border-color: #007bff;
+        background: #f8f9fa;
+      }
+
+      .answer-btn.selected {
+        border-color: #007bff;
+        background: #e3f2fd;
+      }
+
+      .answer-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .answer-label {
+        font-weight: bold;
+        color: #007bff;
+        margin-right: 15px;
+        min-width: 30px;
+      }
+
+      .answer-text {
+        flex: 1;
+      }
+
+      .answer-result {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+
+      .result-correct {
+        color: #28a745;
+        font-weight: bold;
+        font-size: 1.2em;
+      }
+
+      .result-incorrect {
+        color: #dc3545;
+        font-weight: bold;
+        font-size: 1.2em;
+      }
+
+      .support-cards {
+        margin-top: 30px;
+      }
+
+      .support-cards h4 {
+        color: #333;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .cards-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+      }
+
+      .support-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 15px;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9em;
+      }
+
+      .support-card:hover {
+        border-color: #ffc107;
+        background: #fff8e1;
+        transform: translateY(-2px);
+      }
+
+      .support-card i {
+        font-size: 1.5em;
+        color: #ffc107;
+        margin-bottom: 8px;
+      }
+
+      .game-over {
+        text-align: center;
+        padding: 40px;
+      }
+
+      .game-over h2 {
+        color: #333;
+        margin-bottom: 20px;
+      }
+
+      /* Leaderboard Styles */
+      .leaderboard {
+        margin-top: 30px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+      }
+
+      .leaderboard h4 {
+        color: #333;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .question-info {
+        text-align: center;
+        font-weight: bold;
+        color: #007bff;
+        margin-bottom: 15px;
+        font-size: 1.1em;
+      }
+
+      .leaderboard-content {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .leaderboard-row {
+        display: grid;
+        grid-template-columns: 50px 1fr 100px 80px;
+        align-items: center;
+        padding: 12px 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+      }
+
+      .leaderboard-row:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      .rank {
+        font-weight: bold;
+        font-size: 1.2em;
+        text-align: center;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+      }
+
+      .rank-1 {
+        background: linear-gradient(45deg, #ffd700, #ffed4e);
+        color: #333;
+      }
+
+      .rank-2 {
+        background: linear-gradient(45deg, #c0c0c0, #e5e5e5);
+        color: #333;
+      }
+
+      .rank-3 {
+        background: linear-gradient(45deg, #cd7f32, #daa520);
+        color: white;
+      }
+
+      .rank:not(.rank-1):not(.rank-2):not(.rank-3) {
+        background: #6c757d;
+      }
+
+      .player-name {
+        font-weight: 600;
+        color: #333;
+      }
+
+      .player-score {
+        font-weight: bold;
+        color: #28a745;
+        text-align: center;
+      }
+
+      .player-accuracy {
+        font-size: 0.9em;
+        color: #6c757d;
+        text-align: center;
+      }
+
+      /* Timer Styles */
+      .timer-container {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .timer-display {
+        display: inline-block;
+        font-size: 2em;
+        font-weight: bold;
+        padding: 10px 20px;
+        border-radius: 10px;
+        background: #28a745;
+        color: white;
+        min-width: 80px;
+        transition: all 0.3s ease;
+      }
+
+      .timer-normal {
+        background: #28a745;
+      }
+
+      .timer-warning {
+        background: #ffc107;
+        color: #333;
+        animation: pulse 1s infinite;
+      }
+
+      .timer-expired {
+        background: #dc3545;
+        animation: shake 0.5s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-5px);
+        }
+        75% {
+          transform: translateX(5px);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .join-container {
+          padding: 30px 20px;
+        }
+
+        .logo h1 {
+          font-size: 2em;
+        }
+
+        .game-section {
+          padding: 20px;
+        }
+
+        .cards-container {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }

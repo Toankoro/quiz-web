@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tham gia phòng - Quiz Game</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="game-room.css" />
+    <link rel="icon" type="image/png" href="favicon.ico" />
+    <meta name="description" content="Quiz Game - Phòng chơi" />
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+  </head>
+  <body>
+    <div class="join-container">
+      <div class="logo">
+        <i class="fas fa-gamepad"></i>
+        <h1>Quiz Game</h1>
+        <p>Phòng chơi</p>
+      </div>
+
+      <!-- Game Section -->
+      <div class="game-section" id="gameSection">
+        <div class="question-container">
+          <h3><i class="fas fa-question-circle"></i> Câu hỏi</h3>
+
+          <!-- Timer Display -->
+          <div class="timer-container">
+            <div class="timer-display" id="timerDisplay">10s</div>
+          </div>
+
+          <!-- Question Image -->
+          <div class="question-image">
+            <img
+              id="questionImage"
+              style="
+                display: none;
+                max-width: 100%;
+                height: auto;
+                border-radius: 10px;
+              "
+            />
+          </div>
+
+          <!-- Question Content -->
+          <div class="question-content">
+            <p id="questionContent"></p>
+          </div>
+
+          <!-- Answer Options -->
+          <div class="answer-options">
+            <button class="answer-btn" id="answerA" onclick="selectAnswer('A')">
+              <span class="answer-label">A.</span>
+              <span class="answer-text" id="answerA"></span>
+            </button>
+            <button class="answer-btn" id="answerB" onclick="selectAnswer('B')">
+              <span class="answer-label">B.</span>
+              <span class="answer-text" id="answerB"></span>
+            </button>
+            <button class="answer-btn" id="answerC" onclick="selectAnswer('C')">
+              <span class="answer-label">C.</span>
+              <span class="answer-text" id="answerC"></span>
+            </button>
+            <button class="answer-btn" id="answerD" onclick="selectAnswer('D')">
+              <span class="answer-label">D.</span>
+              <span class="answer-text" id="answerD"></span>
+            </button>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            class="btn btn-primary"
+            onclick="submitAnswer()"
+            style="margin-top: 20px"
+          >
+            <i class="fas fa-paper-plane"></i> Gửi câu trả lời
+          </button>
+        </div>
+
+        <!-- Answer Result -->
+        <div class="answer-result" id="answerResult" style="display: none">
+          <h4><i class="fas fa-chart-bar"></i> Kết quả</h4>
+          <p id="resultText"></p>
+          <p id="resultScore"></p>
+        </div>
+
+        <!-- Support Cards -->
+        <div class="support-cards">
+          <h4><i class="fas fa-magic"></i> Thẻ hỗ trợ</h4>
+          <div class="cards-container">
+            <button class="support-card" onclick="useSupportCard('EXTRA_TIME')">
+              <i class="fas fa-clock"></i>
+              <span>Thêm thời gian</span>
+            </button>
+            <button
+              class="support-card"
+              onclick="useSupportCard('DOUBLE_SCORE')"
+            >
+              <i class="fas fa-star"></i>
+              <span>Nhân đôi điểm</span>
+            </button>
+            <button class="support-card" onclick="useSupportCard('HALF_SCORE')">
+              <i class="fas fa-cut"></i>
+              <span>Giảm một nửa</span>
+            </button>
+            <button
+              class="support-card"
+              onclick="useSupportCard('HIDE_ANSWER')"
+            >
+              <i class="fas fa-eye-slash"></i>
+              <span>Ẩn đáp án</span>
+            </button>
+            <button
+              class="support-card"
+              onclick="useSupportCard('SKIP_QUESTION')"
+            >
+              <i class="fas fa-forward"></i>
+              <span>Bỏ qua</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div
+          class="leaderboard"
+          id="leaderboardContainer"
+          style="display: none"
+        >
+          <h4><i class="fas fa-trophy"></i> Bảng xếp hạng</h4>
+          <div class="question-info" id="questionInfo"></div>
+          <div class="leaderboard-content" id="leaderboardContent">
+            <!-- Leaderboard rows will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Back Link -->
+      <div class="back-link">
+        <a href="game.html">
+          <i class="fas fa-arrow-left"></i> Quay lại trang chủ
+        </a>
+      </div>
+    </div>
+
+    <script>
+      // Global variables
+      let stompClient = null;
+      let currentRoomCode = null;
+      let currentPlayerName = null;
+      let clientSessionId = null;
+      let selectedAnswer = null;
+      let questionStartTime = Date.now();
+
+      // Generate unique client session ID
+      function generateClientSessionId() {
+        return (
+          "client_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9)
+        );
+      }
+
+      function initializeSession() {
+        const savedInfo = localStorage.getItem("quizSessionInfo");
+        console.log("Saved info from localStorage:", savedInfo); // Debug log
+
+        if (savedInfo) {
+          try {
+            const sessionInfo = JSON.parse(savedInfo);
+            clientSessionId = sessionInfo.clientSessionId;
+            currentRoomCode = sessionInfo.currentRoomCode;
+            currentPlayerName = sessionInfo.currentPlayerName;
+
+            console.log("Session restored:", {
+              clientSessionId,
+              currentRoomCode,
+              currentPlayerName,
+            });
+
+            if (currentRoomCode && currentPlayerName) {
+              showRoomInfo();
+              connectWebSocket();
+            }
+          } catch (error) {
+            console.error("Error restoring session:", error);
+            // Nếu có lỗi, tạo session mới
+            clientSessionId = generateClientSessionId();
+          }
+        } else {
+          clientSessionId = generateClientSessionId();
+          console.log("New session generated:", clientSessionId);
+        }
+      }
+
+      // Connect to WebSocket
+      function connectWebSocket() {
+        const socket = new SockJS("http://localhost:8080/ws");
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect(
+          {},
+          function (frame) {
+            console.log("Connected to WebSocket");
+            addStatus("Kết nối WebSocket thành công!", "success");
+
+            // Subscribe to topics
+            subscribeToTopics();
+          },
+          function (error) {
+            console.log("WebSocket connection error:", error);
+            addStatus("Lỗi kết nối WebSocket!", "error");
+          }
+        );
+      }
+
+      // Subscribe to WebSocket topics
+      function subscribeToTopics() {
+        if (!currentRoomCode) return;
+
+        stompClient.subscribe(
+          "/topic/room/" + currentRoomCode + "/question",
+          function (response) {
+            const question = JSON.parse(response.body);
+            showQuestion(question);
+          }
+        );
+
+        // Subscribe to answer result
+        stompClient.subscribe("/user/queue/answer-result", function (response) {
+          const result = JSON.parse(response.body);
+          showAnswerResult(result);
+        });
+
+        // Subscribe to game over
+        stompClient.subscribe(
+          "/topic/room/" + currentRoomCode + "/game-over",
+          function (response) {
+            const message = JSON.parse(response.body);
+            showGameOver(message);
+          }
+        );
+
+        // Subscribe to leaderboard updates
+        stompClient.subscribe(
+          "/topic/room/" + currentRoomCode + "/leaderboard",
+          function (response) {
+            const leaderboard = JSON.parse(response.body);
+            updateLeaderboard(leaderboard);
+          }
+        );
+
+        // Subscribe to personal leaderboard (for reconnect)
+        stompClient.subscribe("/user/queue/leaderboard", function (response) {
+          const leaderboard = JSON.parse(response.body);
+          updateLeaderboard(leaderboard);
+        });
+
+        // Subscribe to timer updates
+        stompClient.subscribe(
+          "/topic/room/" + currentRoomCode + "/timer",
+          function (response) {
+            const timer = JSON.parse(response.body);
+            updateTimer(timer);
+          }
+        );
+
+        // Subscribe to personal time updates (when I use extra time card)
+        stompClient.subscribe("/user/queue/time-update", function (response) {
+          const timeUpdate = JSON.parse(response.body);
+          handleTimeUpdate(timeUpdate);
+        });
+      }
+
+      // Show room information
+      function showRoomInfo() {
+        document.getElementById("roomInfo").style.display = "block";
+        document.getElementById("joinForm").style.display = "none";
+
+        document.getElementById("roomCodeDisplay").textContent =
+          currentRoomCode;
+        document.getElementById("playerNameDisplay").textContent =
+          currentPlayerName;
+      }
+
+      // Add status message
+      function addStatus(message, type) {
+        const statusDiv = document.createElement("div");
+        statusDiv.className = "status " + type;
+
+        let icon = "";
+        switch (type) {
+          case "success":
+            icon = '<i class="fas fa-check-circle"></i>';
+            break;
+          case "error":
+            icon = '<i class="fas fa-exclamation-circle"></i>';
+            break;
+          case "info":
+            icon = '<i class="fas fa-info-circle"></i>';
+            break;
+        }
+
+        statusDiv.innerHTML = icon + " " + message;
+
+        const container = document.getElementById("statusMessages");
+        container.appendChild(statusDiv);
+
+        // Remove after 5 seconds
+        setTimeout(() => {
+          statusDiv.remove();
+        }, 5000);
+      }
+
+      // Save session info
+      function saveSessionInfo() {
+        const sessionInfo = {
+          clientSessionId: clientSessionId,
+          currentRoomCode: currentRoomCode,
+          currentPlayerName: currentPlayerName,
+        };
+        localStorage.setItem("quizSessionInfo", JSON.stringify(sessionInfo));
+        console.log("Session saved to localStorage:", sessionInfo);
+      }
+
+      // Restore session info
+      function restoreSessionInfo() {
+        const savedInfo = localStorage.getItem("quizSessionInfo");
+        if (savedInfo) {
+          const sessionInfo = JSON.parse(savedInfo);
+          clientSessionId = sessionInfo.clientSessionId;
+          currentRoomCode = sessionInfo.currentRoomCode;
+          currentPlayerName = sessionInfo.currentPlayerName;
+
+          // If we have room info, reconnect
+          if (currentRoomCode && currentPlayerName) {
+            console.log("Restoring previous session...");
+            showRoomInfo();
+            connectWebSocket();
+          }
+        }
+      }
+
+      // Handle page unload
+      window.removeEventListener("beforeunload", function () {
+        if (stompClient) {
+          localStorage.removeItem("quizSessionInfo");
+          stompClient.disconnect();
+        }
+      });
+
+      // Thêm event listener beforeunload mới
+      window.addEventListener("beforeunload", function (e) {
+        if (stompClient) {
+          // Chỉ disconnect WebSocket, không xóa session info
+          stompClient.disconnect();
+        }
+        // Không xóa localStorage ở đây
+      });
+
+      // Auto-reconnect on connection loss
+      if (stompClient) {
+        stompClient.onclose = function () {
+          console.log("WebSocket disconnected, attempting to reconnect...");
+          setTimeout(connectWebSocket, 1000);
+        };
+      }
+
+      // Add to window load event
+      window.addEventListener("load", function () {
+        const sessionInfo = localStorage.getItem("quizSessionInfo");
+        if (!sessionInfo) {
+          window.location.href = "join.html";
+          return;
+        }
+
+        const { currentRoomCode, currentPlayerName, clientSessionId } =
+          JSON.parse(sessionInfo);
+
+        // Initialize game room with session info
+        initializeGameRoom(currentRoomCode, currentPlayerName, clientSessionId);
+      });
+
+      function initializeGameRoom(roomCode, playerName, sessionId) {
+        currentRoomCode = roomCode;
+        currentPlayerName = playerName;
+        clientSessionId = sessionId;
+
+        // Connect to WebSocket and set up game
+        connectWebSocket();
+      }
+
+      // Add reload handler
+      function handleReload() {
+        sessionStorage.setItem("reloading", "true");
+        window.location.reload();
+      }
+
+      // Clear reload flag after load
+      window.addEventListener("load", function () {
+        sessionStorage.removeItem("reloading");
+      });
+
+      // Show question
+      function showQuestion(question) {
+        const gameSection = document.getElementById("gameSection");
+        const roomInfo = document.getElementById("roomInfo");
+
+        // Hide room info, show game section
+        roomInfo.style.display = "none";
+        gameSection.style.display = "block";
+
+        // Display question
+        document.getElementById("questionContent").textContent =
+          question.content;
+        document.getElementById("answerA").textContent = question.answerA;
+        document.getElementById("answerB").textContent = question.answerB;
+        document.getElementById("answerC").textContent = question.answerC;
+        document.getElementById("answerD").textContent = question.answerD;
+
+        // Show image if exists
+        const questionImage = document.getElementById("questionImage");
+        if (question.imageUrl) {
+          questionImage.src = question.imageUrl;
+          questionImage.style.display = "block";
+        } else {
+          questionImage.style.display = "none";
+        }
+
+        // Reset answer buttons
+        document.querySelectorAll(".answer-btn").forEach((btn) => {
+          btn.classList.remove("selected");
+          btn.disabled = false;
+        });
+
+        // Hide result
+        document.getElementById("answerResult").style.display = "none";
+
+        // Reset question start time
+        questionStartTime = Date.now();
+
+        // Reset timer display
+        const timerDisplay = document.getElementById("timerDisplay");
+        if (timerDisplay) {
+          timerDisplay.textContent = "10s";
+          timerDisplay.className = "timer-normal";
+        }
+
+        // Clear existing timer
+        if (timerInterval) {
+          clearInterval(timerInterval);
+        }
+
+        // Hiển thị bảng điểm nếu có
+        const leaderboardContainer = document.getElementById(
+          "leaderboardContainer"
+        );
+        if (leaderboardContainer) {
+          leaderboardContainer.style.display = "block";
+        }
+
+        addStatus("Câu hỏi mới đã được gửi!", "info");
+      }
+
+      // Handle answer selection
+      function selectAnswer(answer) {
+        // Remove previous selection
+        document.querySelectorAll(".answer-btn").forEach((btn) => {
+          btn.classList.remove("selected");
+        });
+
+        // Select current answer
+        document.getElementById("answer" + answer).classList.add("selected");
+        selectedAnswer = answer;
+      }
+
+      // Submit answer
+      function submitAnswer() {
+        if (!selectedAnswer) {
+          addStatus("Vui lòng chọn một đáp án!", "error");
+          return;
+        }
+
+        if (!stompClient || !stompClient.connected) {
+          addStatus("Không có kết nối WebSocket!", "error");
+          return;
+        }
+
+        // Disable all answer buttons
+        document.querySelectorAll(".answer-btn").forEach((btn) => {
+          btn.disabled = true;
+        });
+
+        // Send answer
+        stompClient.send(
+          "/app/room/" + currentRoomCode + "/submit-answer",
+          {},
+          JSON.stringify({
+            sessionId: clientSessionId,
+            selectedAnswer: selectedAnswer,
+            timeTaken: Date.now() - questionStartTime,
+          })
+        );
+
+        addStatus("Đã gửi câu trả lời!", "success");
+      }
+
+      // Show answer result
+      function showAnswerResult(result) {
+        const resultDiv = document.getElementById("answerResult");
+        const resultText = document.getElementById("resultText");
+        const resultScore = document.getElementById("resultScore");
+
+        if (result.correct) {
+          resultText.textContent = "Chính xác! 🎉";
+          resultText.className = "result-correct";
+        } else {
+          resultText.textContent = "Sai rồi! 😔";
+          resultText.className = "result-incorrect";
+        }
+
+        resultScore.textContent = `Điểm: ${result.score}`;
+        resultDiv.style.display = "block";
+
+        addStatus(
+          `Kết quả: ${result.correct ? "Đúng" : "Sai"} - ${result.score} điểm`,
+          result.correct ? "success" : "error"
+        );
+      }
+
+      // Show game over
+      function showGameOver(message) {
+        const gameSection = document.getElementById("gameSection");
+        gameSection.innerHTML = `
+          <div class="game-over">
+            <h2><i class="fas fa-trophy"></i> Game Over</h2>
+            <p>${message}</p>
+            <button onclick="location.reload()" class="btn btn-primary">
+              <i class="fas fa-redo"></i> Chơi lại
+            </button>
+          </div>
+        `;
+
+        addStatus("Game đã kết thúc!", "info");
+      }
+
+      // Support card functions
+      function useSupportCard(cardType) {
+        if (!stompClient || !stompClient.connected) {
+          addStatus("Không có kết nối WebSocket!", "error");
+          return;
+        }
+
+        stompClient.send(
+          "/app/room/" + currentRoomCode + "/support-card",
+          {},
+          JSON.stringify({
+            sessionId: clientSessionId,
+            cardType: cardType,
+          })
+        );
+
+        addStatus(`Đã sử dụng thẻ: ${cardType}`, "info");
+      }
+
+      // Timer variables
+      let currentTimer = null;
+      let timerInterval = null;
+      let myTimeLimit = 10000; // Default 10 seconds
+
+      // Update timer
+      function updateTimer(timer) {
+        currentTimer = timer;
+        myTimeLimit =
+          timer.playerTimeLimits[clientSessionId] || timer.baseTimeLimit;
+
+        // Clear existing timer
+        if (timerInterval) {
+          clearInterval(timerInterval);
+        }
+
+        // Start new timer
+        startTimer(timer.startTime, myTimeLimit);
+
+        addStatus("Timer đã được cập nhật!", "info");
+      }
+
+      // Start timer
+      function startTimer(startTime, timeLimit) {
+        const timerDisplay = document.getElementById("timerDisplay");
+        if (!timerDisplay) return;
+
+        timerInterval = setInterval(() => {
+          const now = Date.now();
+          const elapsed = now - startTime;
+          const remaining = timeLimit - elapsed;
+
+          if (remaining <= 0) {
+            // Time's up!
+            clearInterval(timerInterval);
+            timerDisplay.textContent = "Hết thời gian!";
+            timerDisplay.className = "timer-expired";
+
+            // Disable answer buttons
+            document.querySelectorAll(".answer-btn").forEach((btn) => {
+              btn.disabled = true;
+            });
+
+            addStatus("Hết thời gian trả lời!", "error");
+          } else {
+            // Update display
+            const seconds = Math.ceil(remaining / 1000);
+            timerDisplay.textContent = `${seconds}s`;
+            timerDisplay.className =
+              seconds <= 5 ? "timer-warning" : "timer-normal";
+          }
+        }, 1000);
+
+        // Hiển thị thời gian ngay lập tức
+        const now = Date.now();
+        const elapsed = now - startTime;
+        const remaining = timeLimit - elapsed;
+        if (remaining > 0) {
+          const seconds = Math.ceil(remaining / 1000);
+          timerDisplay.textContent = `${seconds}s`;
+          timerDisplay.className =
+            seconds <= 5 ? "timer-warning" : "timer-normal";
+        }
+      }
+
+      // Handle time update (when I use extra time card)
+      function handleTimeUpdate(timeUpdate) {
+        // This is me using the card
+        myTimeLimit = timeUpdate.newTimeLimit;
+
+        // Cập nhật timer ngay lập tức với thời gian mới
+        if (currentTimer && timerInterval) {
+          clearInterval(timerInterval);
+          startTimer(currentTimer.startTime, myTimeLimit);
+        }
+
+        addStatus(
+          `⏰ Bạn đã thêm ${
+            timeUpdate.extraTime / 1000
+          } giây! Timer đã được cập nhật.`,
+          "success"
+        );
+      }
+
+      // Update leaderboard
+      function updateLeaderboard(leaderboard) {
+        const leaderboardContainer = document.getElementById(
+          "leaderboardContainer"
+        );
+        if (!leaderboardContainer) return;
+
+        const leaderboardContent =
+          document.getElementById("leaderboardContent");
+        leaderboardContent.innerHTML = "";
+
+        leaderboard.players.forEach((player, index) => {
+          const playerRow = document.createElement("div");
+          playerRow.className = "leaderboard-row";
+
+          const rank = index + 1;
+          const rankClass =
+            rank === 1
+              ? "rank-1"
+              : rank === 2
+              ? "rank-2"
+              : rank === 3
+              ? "rank-3"
+              : "";
+
+          playerRow.innerHTML = `
+            <div class="rank ${rankClass}">${rank}</div>
+            <div class="player-name">${player.playerName}</div>
+            <div class="player-score">${player.totalScore} điểm</div>
+            <div class="player-accuracy">${Math.round(
+              player.accuracy * 100
+            )}%</div>
+          `;
+
+          leaderboardContent.appendChild(playerRow);
+        });
+
+        // Hiển thị thông tin câu hỏi
+        const questionInfo = document.getElementById("questionInfo");
+        if (questionInfo) {
+          questionInfo.textContent = `Câu ${leaderboard.currentQuestionIndex}/${leaderboard.totalQuestions}`;
+        }
+
+        // Hiển thị leaderboard
+        leaderboardContainer.style.display = "block";
+      }
+
+      // Initialize
+      console.log("Join Room Page initialized");
+      addStatus(
+        "Chào mừng! Vui lòng nhập thông tin để tham gia phòng.",
+        "info"
+      );
+    </script>
+  </body>
+</html>

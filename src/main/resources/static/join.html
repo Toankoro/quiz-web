@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tham gia phòng - Quiz Game</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles/join.css" />
+    <link rel="icon" type="image/png" href="favicon.ico" />
+    <meta name="description" content="Quiz Game - Tham gia phòng" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">
+        <i class="fas fa-gamepad"></i>
+        <h1>Quiz Game</h1>
+        <p>Tham gia phòng chơi</p>
+      </div>
+
+      <div id="joinForm">
+        <div class="form-group">
+          <label for="playerName">
+            <i class="fas fa-user"></i> Tên người chơi
+          </label>
+          <input type="text" id="playerName" placeholder="Nhập tên của bạn" />
+        </div>
+
+        <div class="form-group">
+          <label for="roomCode"> <i class="fas fa-key"></i> Mã phòng </label>
+          <input
+            type="text"
+            id="roomCode"
+            placeholder="Nhập mã phòng từ host"
+          />
+        </div>
+
+        <button class="btn" onclick="joinRoom()" id="joinBtn">
+          <i class="fas fa-sign-in-alt"></i> Tham gia phòng
+        </button>
+      </div>
+
+      <div id="statusMessages"></div>
+    </div>
+
+    <script>
+      async function joinRoom() {
+        const playerName = document.getElementById("playerName").value;
+        const roomCode = document.getElementById("roomCode").value;
+
+        if (!playerName || !roomCode) {
+          addStatus("Vui lòng nhập đầy đủ thông tin!", "error");
+          return;
+        }
+
+        try {
+          const roomResponse = await fetch(
+            "http://localhost:8080/api/room/" + roomCode
+          );
+          if (!roomResponse.ok) {
+            addStatus("Phòng không tồn tại!", "error");
+            return;
+          }
+
+          // Lưu thông tin vào localStorage
+          const sessionInfo = {
+            clientSessionId:
+              "client_" +
+              Date.now() +
+              "_" +
+              Math.random().toString(36).substr(2, 9),
+            currentRoomCode: roomCode,
+            currentPlayerName: playerName,
+          };
+          localStorage.setItem("quizSessionInfo", JSON.stringify(sessionInfo));
+
+          // Chuyển hướng sang trang waiting room
+          window.location.href = "waiting-room.html";
+        } catch (error) {
+          console.error("Error:", error);
+          addStatus("Lỗi tham gia phòng!", "error");
+        }
+      }
+
+      function addStatus(message, type) {
+        const statusDiv = document.createElement("div");
+        statusDiv.className = "status " + type;
+
+        const icon =
+          type === "success"
+            ? "check-circle"
+            : type === "error"
+            ? "exclamation-circle"
+            : "info-circle";
+
+        statusDiv.innerHTML = `<i class="fas fa-${icon}"></i> ${message}`;
+
+        const container = document.getElementById("statusMessages");
+        container.appendChild(statusDiv);
+
+        setTimeout(() => statusDiv.remove(), 5000);
+      }
+    </script>
+  </body>
+</html>

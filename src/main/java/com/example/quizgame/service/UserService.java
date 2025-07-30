@@ -2,10 +2,8 @@ package com.example.quizgame.service;
 
 import com.example.quizgame.dto.ApiResponse;
 import com.example.quizgame.dto.request.ChangePasswordRequest;
-import com.example.quizgame.dto.request.LoginRequest;
 import com.example.quizgame.dto.request.RegisterRequest;
 import com.example.quizgame.dto.request.VerifyCodeRequest;
-import com.example.quizgame.dto.response.LoginResponse;
 import com.example.quizgame.dto.response.UserResponse;
 import com.example.quizgame.entity.SecureToken;
 import com.example.quizgame.entity.User;
@@ -16,7 +14,6 @@ import com.example.quizgame.mailing.AccountVerificationEmailContext;
 import com.example.quizgame.mailing.EmailService;
 import com.example.quizgame.reponsitory.UserRepository;
 import com.example.quizgame.reponsitory.VerificationCodeRepository;
-import com.example.quizgame.security.JwtUtil;
 import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
 import org.apache.commons.lang3.StringUtils;
@@ -26,10 +23,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.messaging.simp.user.UserDestinationResolver;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -62,9 +55,9 @@ public class UserService implements UserDetailsService {
     private String baseUrl;
 
     public ApiResponse<UserResponse> register(RegisterRequest registerRequest) throws UserAlreadyExistException {
-        if (checkIfUserExist(registerRequest.getEmail())) {
-            throw new UserAlreadyExistException("This user already exist");
-        }
+//        if (checkIfUserExist(registerRequest.getEmail())) {
+//            throw new UserAlreadyExistException("This user already exist");
+//        }
         if (!registerRequest.getPassword().equals(registerRequest.getConfirmPassword())){
             throw new IllegalArgumentException("Mật khẩu và xác nhận mật khẩu không khớp");
         }

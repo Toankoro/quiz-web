@@ -1,5 +1,6 @@
 package com.example.quizgame.controller;
 
+import com.example.quizgame.component.UserUtils;
 import com.example.quizgame.dto.ApiResponse;
 import com.example.quizgame.dto.request.*;
 import com.example.quizgame.dto.response.UserResponse;
@@ -26,6 +27,7 @@ public class AuthController {
     private AuthenticationManager authManager;
     @Autowired private UserService userService;
     @Autowired private JwtUtil jwtUtil;
+
 
     @Autowired
     private MessageSource messageSource;

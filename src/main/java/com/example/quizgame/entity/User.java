@@ -15,10 +15,10 @@ public class User extends Auditable<String> {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = false, nullable = false)
     private String firstname;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = false, nullable = false)
     private String lastname;
 
     @Column(unique = true, nullable = false)
@@ -27,7 +27,7 @@ public class User extends Auditable<String> {
     @Column(nullable = false)
     private String password;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = false, nullable = false)
     private String email;
 
     private boolean accountVerified;

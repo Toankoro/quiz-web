@@ -1,7 +1,6 @@
 package com.example.quizgame.service;
 
 import com.example.quizgame.entity.SecureToken;
-import org.springframework.stereotype.Service;
 
 public interface SecureTokenService {
 
