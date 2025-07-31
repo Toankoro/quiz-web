@@ -1,10 +1,15 @@
 package com.example.quizgame.service;
 
 import com.example.quizgame.dto.ApiResponse;
+import com.example.quizgame.dto.chat.CustomUserDetails;
 import com.example.quizgame.dto.request.ChangePasswordRequest;
+import com.example.quizgame.dto.request.LoginRequest;
 import com.example.quizgame.dto.request.RegisterRequest;
 import com.example.quizgame.dto.request.VerifyCodeRequest;
+import com.example.quizgame.dto.response.LoginResponse;
 import com.example.quizgame.dto.response.UserResponse;
+import com.example.quizgame.dto.user.UserProfileResponse;
+import com.example.quizgame.dto.user.UserProfileUpdateRequest;
 import com.example.quizgame.entity.SecureToken;
 import com.example.quizgame.entity.User;
 import com.example.quizgame.entity.VerificationCode;
@@ -14,8 +19,10 @@ import com.example.quizgame.mailing.AccountVerificationEmailContext;
 import com.example.quizgame.mailing.EmailService;
 import com.example.quizgame.reponsitory.UserRepository;
 import com.example.quizgame.reponsitory.VerificationCodeRepository;
+import com.example.quizgame.security.JwtUtil;
 import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +30,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.messaging.simp.user.UserDestinationResolver;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -30,10 +41,12 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 public class UserService implements UserDetailsService {
     @Autowired
     private UserRepository userRepository;
@@ -46,18 +59,11 @@ public class UserService implements UserDetailsService {
     @Autowired
     private EmailService emailService;
 
-    public Optional<User> findByUsername(String username) {
-        return userRepository.findByUsername(username);
-    }
-
-
     @Value("${site.base.url.https}")
     private String baseUrl;
 
     public ApiResponse<UserResponse> register(RegisterRequest registerRequest) throws UserAlreadyExistException {
-//        if (checkIfUserExist(registerRequest.getEmail())) {
-//            throw new UserAlreadyExistException("This user already exist");
-//        }
+
         if (!registerRequest.getPassword().equals(registerRequest.getConfirmPassword())){
             throw new IllegalArgumentException("Mật khẩu và xác nhận mật khẩu không khớp");
         }
@@ -67,8 +73,8 @@ public class UserService implements UserDetailsService {
         user.setUsername(registerRequest.getUsername());
         user.setPassword(encoder.encode(registerRequest.getPassword()));
         user.setEmail(registerRequest.getEmail());
-        user.setFirstname(registerRequest.getFirstname());
-        user.setLastname(registerRequest.getLastname());
+        userRepository.save(user);
+        user.setFirstname("User" + user.getId());
         userRepository.save(user);
         sendRegistrationConfirmationEmail(user);
         ApiResponse<UserResponse> responseRegister = new ApiResponse();
@@ -76,9 +82,6 @@ public class UserService implements UserDetailsService {
         return responseRegister;
     }
 
-    public boolean checkIfUserExist(String email) {
-        return userRepository.findByEmail(email) != null;
-    }
 
     public void sendRegistrationConfirmationEmail(User user) {
         SecureToken secureToken = secureTokenService.createToken();
@@ -100,7 +103,12 @@ public class UserService implements UserDetailsService {
     public boolean verifyUser(String token) throws InvalidTokenException {
         SecureToken secureToken = secureTokenService.findByToken(token);
         if (Objects.isNull(token) || !StringUtils.equals(token, secureToken.getToken()) || secureToken.isExpired()) {
-            throw new InvalidTokenException("Token không hợp lệ!");
+            if (secureToken.getUser() != null) {
+                userRepository.deleteById(secureToken.getUser().getId());
+            }
+
+            secureTokenService.removeToken(secureToken);
+            throw new InvalidTokenException("Token đã hết hạn, tài khoản đã bị xóa!");
         }
 
         User user = userRepository.getById(secureToken.getUser().getId());
@@ -155,35 +163,106 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public ResponseEntity<?> verifyCodeAndChangePassword(VerifyCodeRequest req) {
+        // 1. Tìm mã đúng theo username và code
         Optional<VerificationCode> codeOpt = codeRepo.findByUsernameAndCode(req.getUsername(), req.getCode());
         if (codeOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("Mã xác minh không đúng");
-        }
+            // Nếu mã không khớp, tìm mã gần nhất của user để xử lý attempt
+            Optional<VerificationCode> wrongCodeOpt = codeRepo.findTopByUsernameOrderByCreatedAtDesc(req.getUsername());
 
+            if (wrongCodeOpt.isPresent()) {
+                VerificationCode wrongCode = wrongCodeOpt.get();
+                // Check hết hạn (sau 10 phút)
+                if (wrongCode.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(10))) {
+                    codeRepo.delete(wrongCode);
+                    return ResponseEntity.badRequest().body("Mã đã hết hạn. Vui lòng yêu cầu gửi lại mã mới.");
+                }
+                // Tăng số lần thử
+                int currentAttempts = wrongCode.getAttempts() + 1;
+                if (currentAttempts >= 5) {
+                    codeRepo.delete(wrongCode); // Xoá mã sau khi sai quá số lần
+                    return ResponseEntity.badRequest().body("Bạn đã nhập sai quá 5 lần. Mã xác minh đã bị huỷ.");
+                }
+                wrongCode.setAttempts(currentAttempts);
+                codeRepo.save(wrongCode);
+                return ResponseEntity.badRequest().body("Mã xác minh không đúng. Bạn còn " + (5 - currentAttempts) + " lần thử.");
+            }
+
+            // Nếu không có mã nào gần nhất (trường hợp bất thường)
+            return ResponseEntity.badRequest().body("Mã xác minh không đúng.");
+        }
+        // 2. Nếu tìm thấy mã đúng
         VerificationCode vc = codeOpt.get();
+        // Kiểm tra hết hạn
         if (vc.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(10))) {
-            return ResponseEntity.badRequest().body("Mã đã hết hạn");
+            codeRepo.delete(vc);
+            return ResponseEntity.badRequest().body("Mã đã hết hạn. Vui lòng yêu cầu gửi lại mã mới.");
         }
-
+        // Kiểm tra số lần sai
+        if (vc.getAttempts() >= 5) {
+            codeRepo.delete(vc);
+            return ResponseEntity.badRequest().body("Mã đã bị huỷ do vượt quá số lần thử.");
+        }
+        // 3. Đổi mật khẩu
         Optional<User> userOpt = userRepository.findByUsername(req.getUsername());
         if (userOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("Người dùng không tồn tại");
+            return ResponseEntity.badRequest().body("Người dùng không tồn tại.");
         }
-
         User user = userOpt.get();
         user.setPassword(encoder.encode(req.getNewPassword()));
         userRepository.save(user);
+        // 4. Xoá mã sau khi dùng xong
         codeRepo.delete(vc);
-
-        return ResponseEntity.ok("Đặt lại mật khẩu thành công");
+        return ResponseEntity.ok("Đặt lại mật khẩu thành công.");
     }
-
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy user"));
-        return new org.springframework.security.core.userdetails.User(
-                user.getUsername(), user.getPassword(), List.of(new SimpleGrantedAuthority(user.getRole())));
+        return new CustomUserDetails(user);
     }
+
+    public UserProfileResponse getProfile(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        return UserProfileResponse.builder()
+                .firstname(user.getFirstname())
+                .email(user.getEmail())
+                .socialLinks(user.getSocialLinks())
+                .avatar(user.getAvatar())
+                .build();
+    }
+
+    public void updateProfile(String username, UserProfileUpdateRequest req) throws IOException {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        user.setFirstname(req.getFirstname());
+        user.setEmail(req.getEmail());
+        user.setSocialLinks(req.getSocialLinks());
+
+        if (req.getAvatar() != null && !req.getAvatar().isEmpty()) {
+            System.out.println("Avatar name: " + req.getAvatar().getOriginalFilename());
+            System.out.println("Content type: " + req.getAvatar().getContentType());
+            System.out.println("Size: " + req.getAvatar().getSize());
+            String contentType = req.getAvatar().getContentType(); // e.g. image/png
+            if (contentType != null && contentType.startsWith("image/")) {
+                String base64 = Base64.getEncoder().encodeToString(req.getAvatar().getBytes());
+                user.setAvatar("data:" + contentType + ";base64," + base64);
+            } else {
+                throw new IllegalArgumentException("Uploaded file is not an image");
+            }
+        }
+
+        userRepository.save(user);
+    }
+
+    public void increaseExp(User user, int addedExp) {
+        int newExp = user.getExp() + addedExp;
+        int levelUps = newExp / 100;
+        user.setLevel(user.getLevel() + levelUps);
+        user.setExp(newExp % 100);
+    }
+
 }

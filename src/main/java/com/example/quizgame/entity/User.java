@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -15,29 +17,51 @@ public class User extends Auditable<String> {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = false, nullable = false)
+    @Column( nullable = true)
     private String firstname;
 
-    @Column(unique = false, nullable = false)
-    private String lastname;
-
-    @Column(unique = true, nullable = false)
+    @Column( nullable = false)
     private String username;
 
     @Column(nullable = false)
     private String password;
 
-    @Column(unique = false, nullable = false)
+    @Column( nullable = false)
     private String email;
 
     private boolean accountVerified;
 
     private boolean loginDisabled;
 
+    @Column(nullable = false)
+    private int level = 1;
+    @Column(nullable = false)
+    private int exp = 0;
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String avatar;
 
-    private String role = "USER";
+    private String socialLinks;
+
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
     @OneToMany(mappedBy = "user")
     Set<SecureToken> tokens;
 
+    public enum Role {
+        USER, ADMIN
+    }
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Violation> violations = new ArrayList<>();
+
+    @OneToMany(mappedBy = "sender", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ChatMessage> messages = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RoomParticipant> roomParticipants = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<GameRanking> gameRankings = new ArrayList<>();
 }

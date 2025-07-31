@@ -12,7 +12,6 @@ public class LoginResponse {
     private String username;
     private String email;
     private String firstname;
-    private String lastname;
     private String token;
 
     public static LoginResponse fromUserToLoginResponse (User user, String token) {
@@ -20,7 +19,6 @@ public class LoginResponse {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .firstname(user.getFirstname())
-                .lastname(user.getLastname())
                 .token(token)
                 .build();
     }
