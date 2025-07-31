@@ -42,6 +42,8 @@ public class GameSocketController {
         messagingTemplate.convertAndSend("/topic/room/" + roomCode + "/players", players);
     }
 
+
+
     @MessageMapping("/room/{roomCode}/answer")
     public void answer(@DestinationVariable String roomCode,
             AnswerMessage message,

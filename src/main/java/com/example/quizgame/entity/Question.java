@@ -25,8 +25,9 @@ public class Question {
     private String answerD;
     private String imageUrl;
     @NotBlank(message = "Chưa chọn đáp án đúng")
-    private Integer limitedTime;
     private String correctAnswer;
+
+    private Integer limitedTime;
     private Integer score;
 
     @ManyToOne

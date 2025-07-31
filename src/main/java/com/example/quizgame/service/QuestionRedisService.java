@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -33,8 +34,13 @@ public class QuestionRedisService {
 
     public void setCurrentQuestionId(String roomCode, Long questionId) {
         String key = getCurrentQuestionIdKey(roomCode);
-        stringRedisTemplate.opsForValue().set(key, questionId.toString());
+        if (questionId != null) {
+            stringRedisTemplate.opsForValue().set(key, questionId.toString());
+        } else {
+            stringRedisTemplate.delete(key);
+        }
     }
+
 
     public Long getCurrentQuestionId(String roomCode) {
         String key = getCurrentQuestionIdKey(roomCode);
@@ -65,6 +71,7 @@ public class QuestionRedisService {
         redisTemplate.opsForValue().set(getQuizIdKey(roomCode), quizId);
     }
 
+    // get quizid by room code cache
     public String getQuizIdByRoomCode(String roomCode) {
         Object value = redisTemplate.opsForValue().get(getQuizIdKey(roomCode));
         return value != null ? value.toString() : null;
@@ -84,6 +91,17 @@ public class QuestionRedisService {
     public void removeSupportCard(String roomCode, String sessionId) {
         String key = "card:" + roomCode + ":" + sessionId;
         redisTemplate.delete(key);
+    }
+
+    /**
+     * Xóa tất cả support cards trong phòng
+     */
+    public void clearAllSupportCards(String roomCode) {
+        String pattern = "card:" + roomCode + ":*";
+        Set<String> keys = redisTemplate.keys(pattern);
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+        }
     }
 
     // clear() cache câu hỏi nếu update, insert, create

@@ -39,12 +39,66 @@ public class QuestionController {
     private final QuestionRedisService questionRedisService;
     private final GameRoomService gameRoomService;
     private final PlayerRepository playerRepository;
+    //chơi lại game vừa kết thúc, trưởng nhóm phụ trách nhấn phần chơi lại để người chơi có thể chơi lại được
+    @MessageMapping("/room/{roomCode}/replay")
+    public void replayGame(@DestinationVariable String roomCode, @Payload ReplayGameMessage replayGameMessage) {
+        if (!gameRoomService.isHost(roomCode, replayGameMessage.getHostClientSessionId())) {
+            log.warn("Người dùng không phải host cố gắng replay game trong phòng {}", roomCode);
+            return;
+        }
+        questionService.resetRoomState(roomCode, replayGameMessage.getQuizId());
+        QuestionResponse firstQuestion = questionService.startGameAndGetFirstQuestion(roomCode,
+                replayGameMessage.getQuizId());
+        if (firstQuestion != null) {
+            messagingTemplate.convertAndSend("/topic/room/" + roomCode + "/start", "Game replayed");
+            messagingTemplate.convertAndSend("/topic/room/" + roomCode + "/question", firstQuestion);
+            QuestionTimerResponse timer = questionService.createQuestionTimer(roomCode, firstQuestion.getId());
+            messagingTemplate.convertAndSend("/topic/room/" + roomCode + "/timer", timer);
+            sendLeaderboardUpdate(roomCode);
+        } else {
+            messagingTemplate.convertAndSend("/topic/room/" + roomCode + "/game-over", "Không có câu hỏi.");
+        }
+    }
 
     @MessageMapping("/room/{roomCode}/support-card")
     public void useSupportCard(@DestinationVariable String roomCode,
-            @Payload SupportCardMessage supportCardMessage) {
+            @Payload SupportCardMessage supportCardMessage, @Header("simpSessionId") String simpSessionId) {
+        // Kiểm tra xem người chơi đã sử dụng card cho câu hỏi hiện tại chưa
+        Long currentQuestionId = questionRedisService.getCurrentQuestionId(roomCode);
+        if (currentQuestionId == null) {
+            log.warn("Không có câu hỏi hiện tại trong phòng {}", roomCode);
+            return;
+        }
+
+        SupportCardResult existingCard = questionRedisService.getSupportCard(roomCode,
+                supportCardMessage.getSessionId());
+        if (existingCard != null && existingCard.getQuestionId().equals(currentQuestionId)) {
+            log.warn("Người chơi {} đã sử dụng card cho câu hỏi hiện tại trong phòng {}",
+                    supportCardMessage.getSessionId(), roomCode);
+            return;
+        }
+
+        // Lưu thông tin card
         questionService.useSupportCard(roomCode, supportCardMessage.getSessionId(), supportCardMessage.getCardType());
-        log.info("Áp dụng thẻ");
+        log.info("Áp dụng thẻ {} cho người chơi {} trong phòng {}",
+                supportCardMessage.getCardType(), supportCardMessage.getSessionId(), roomCode);
+
+        if (supportCardMessage.getCardType() == SupportCardType.HIDE_ANSWER) {
+            String quizId = questionRedisService.getQuizIdByRoomCode(roomCode);
+            QuestionResponse currentQuestion = questionRedisService.getQuestionById(quizId, currentQuestionId);
+
+            if (currentQuestion != null) {
+                QuestionResponse hidden = questionService.hideTwoAnswers(currentQuestion);
+                messagingTemplate.convertAndSendToUser(
+                        simpSessionId,
+                        "/queue/question-updated",
+                        hidden,
+                        createHeaders(simpSessionId));
+
+                log.info("Đã áp dụng card ẩn câu trả lời cho người chơi {} trong phòng {}",
+                        supportCardMessage.getSessionId(), roomCode);
+            }
+        }
     }
 
     @MessageMapping("/room/{roomCode}/start")
@@ -59,19 +113,6 @@ public class QuestionController {
         if (firstQuestion != null) {
             messagingTemplate.convertAndSend("/topic/room/" + roomCode + "/start", "Game started");
             messagingTemplate.convertAndSend("/topic/room/" + roomCode + "/question", firstQuestion);
-
-            List<String> sessionIds = questionService.getSessionIdsInRoom(roomCode);
-
-            for (String sessionId : sessionIds) {
-                if (questionService.hasHideAnswerCard(roomCode, sessionId, firstQuestion.getId())) {
-                    QuestionResponse hidden = questionService.hideTwoAnswers(firstQuestion);
-                    messagingTemplate.convertAndSendToUser(
-                            sessionId,
-                            "/queue/question",
-                            hidden,
-                            createHeaders(sessionId));
-                }
-            }
 
             // Gửi thông tin timer cho câu hỏi đầu tiên
             QuestionTimerResponse timer = questionService.createQuestionTimer(roomCode, firstQuestion.getId());
@@ -95,20 +136,6 @@ public class QuestionController {
         QuestionResponse next = questionService.sendNextQuestion(roomCode);
         if (next != null) {
             messagingTemplate.convertAndSend("/topic/room/" + roomCode + "/question", next);
-
-            List<String> sessionIds = questionService.getSessionIdsInRoom(roomCode);
-            for (String sessionId : sessionIds) {
-                if (questionService.hasHideAnswerCard(roomCode, sessionId, next.getId())) {
-                    QuestionResponse hidden = questionService.hideTwoAnswers(next);
-                    messagingTemplate.convertAndSendToUser(
-                            sessionId,
-                            "/queue/question",
-                            hidden,
-                            createHeaders(sessionId));
-                }
-            }
-
-            // Gửi thông tin timer cho câu hỏi mới
             QuestionTimerResponse timer = questionService.createQuestionTimer(roomCode, next.getId());
             messagingTemplate.convertAndSend("/topic/room/" + roomCode + "/timer", timer);
 
@@ -188,10 +215,16 @@ public class QuestionController {
         }
     }
 
-    // REST endpoint để lấy bảng điểm
+    // REST endpoint để lấy bảng điểm cửa người chơi
     @GetMapping("/api/room/{roomCode}/leaderboard")
     public LeaderboardResponse getLeaderboard(@PathVariable String roomCode) {
         return questionService.getLeaderboard(roomCode);
+    }
+
+    // REST endpoint để kiểm tra xem người chơi có thể sử dụng support card hay không
+    @GetMapping("/api/room/{roomCode}/player/{sessionId}/can-use-card")
+    public boolean canUseSupportCard(@PathVariable String roomCode, @PathVariable String sessionId) {
+        return questionService.canUseSupportCard(roomCode, sessionId);
     }
 
     // Gửi bảng điểm cập nhật cho tất cả người chơi trong phòng

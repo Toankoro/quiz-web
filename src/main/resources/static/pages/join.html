@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="../styles/join.css" />
     <link rel="icon" type="image/png" href="favicon.ico" />
     <meta name="description" content="Quiz Game - Tham gia phòng" />
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
   </head>
   <body>
     <div class="container">
@@ -56,15 +58,7 @@
         }
 
         try {
-          const roomResponse = await fetch(
-            "http://localhost:8080/api/room/" + roomCode
-          );
-          if (!roomResponse.ok) {
-            addStatus("Phòng không tồn tại!", "error");
-            return;
-          }
-
-          // Lưu thông tin vào localStorage
+          // Generate session info
           const sessionInfo = {
             clientSessionId:
               "client_" +
@@ -74,10 +68,35 @@
             currentRoomCode: roomCode,
             currentPlayerName: playerName,
           };
-          localStorage.setItem("quizSessionInfo", JSON.stringify(sessionInfo));
 
-          // Chuyển hướng sang trang waiting room
-          window.location.href = "waiting-room.html";
+          // Connect to WebSocket and join room
+          const socket = new SockJS("http://localhost:8080/ws");
+          const stompClient = Stomp.over(socket);
+
+          stompClient.connect(
+            {},
+            function (frame) {
+              console.log("Connected to WebSocket");
+
+              // Send join message
+              stompClient.send(
+                "/app/room/" + roomCode + "/join",
+                {},
+                JSON.stringify({
+                  clientSessionId: sessionInfo.clientSessionId,
+                  playerName: playerName,
+                })
+              );
+
+              // Save session info and redirect to game-room.html directly
+              localStorage.setItem("quizSessionInfo", JSON.stringify(sessionInfo));
+              window.location.href = "game-room.html"; // Changed from waiting-room.html to game-room.html
+            },
+            function (error) {
+              console.error("WebSocket connection error:", error);
+              addStatus("Lỗi kết nối tới server!", "error");
+            }
+          );
         } catch (error) {
           console.error("Error:", error);
           addStatus("Lỗi tham gia phòng!", "error");

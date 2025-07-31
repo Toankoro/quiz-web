@@ -29,11 +29,27 @@ public class QuestionService {
     private final QuestionRedisService questionRedisService;
     private final PlayerService playerService;
 
+    public void resetRoomState(String roomCode, String quizId) {
+        // Xóa điểm, câu trả lời tạm, support card, v.v.
+        playerRedisService.deleteAllTemporaryAnswers(roomCode);
+        questionRedisService.clearAllSupportCards(roomCode);
+        // Reset chỉ số câu hỏi, current question, quizId
+        questionRedisService.setQuizIdForRoomCode(roomCode, quizId);
+        questionRedisService.setCurrentQuestionIndex(roomCode, 0);
+        questionRedisService.setCurrentQuestionId(roomCode, null);
+        playerRedisService.deleteAllTemporaryAnswers(roomCode);
+        playerRedisService.getPlayersInRoom(roomCode)
+                .forEach(player -> playerRedisService.deleteTemporaryAnswers(roomCode, player.getClientSessionId()));
+        // Xóa cache câu hỏi nếu cần
+//        questionRedisService.clearCachedQuestionsByQuizId(quizId);
+    }
+
     // lấy sessionId từ
     public List<String> getSessionIdsInRoom(String roomCode) {
         return playerRepository.findByRoom_RoomCode(roomCode)
                 .stream()
-                .map(Player::getSessionId)
+                // .map(Player::getSessionId)
+                .map(Player::getClientSessionId)
                 .collect(Collectors.toList());
     }
 
@@ -44,7 +60,25 @@ public class QuestionService {
                 && card.getQuestionId().equals(questionId);
     }
 
+
+     // kiểm tra xem người chơi có thể sử dụng support card hay không
+
+    public boolean canUseSupportCard(String roomCode, String sessionId) {
+        Long currentQuestionId = questionRedisService.getCurrentQuestionId(roomCode);
+        if (currentQuestionId == null) {
+            return false;
+        }
+
+        SupportCardResult existingCard = questionRedisService.getSupportCard(roomCode, sessionId);
+        return existingCard == null || !existingCard.getQuestionId().equals(currentQuestionId);
+    }
+
     public QuestionResponse hideTwoAnswers(QuestionResponse question) {
+        if (question == null) {
+            return null;
+        }
+
+        // Tạo bản sao của câu hỏi
         QuestionResponse clone = QuestionResponse.builder()
                 .id(question.getId())
                 .content(question.getContent())
@@ -54,19 +88,33 @@ public class QuestionService {
                 .answerD(question.getAnswerD())
                 .imageUrl(question.getImageUrl())
                 .correctAnswer(question.getCorrectAnswer())
+                .limitedTime(question.getLimitedTime())
                 .score(question.getScore())
                 .build();
 
         String correct = question.getCorrectAnswer();
+        if (correct == null || correct.trim().isEmpty()) {
+            return clone; // Không thể ẩn đáp án nếu không có đáp án đúng
+        }
+
+        // Lấy danh sách các đáp án sai
         List<String> answers = List.of("A", "B", "C", "D");
         List<String> wrongs = answers.stream()
                 .filter(a -> !a.equalsIgnoreCase(correct))
                 .collect(Collectors.toList());
-        Collections.shuffle(wrongs);
-        List<String> toHide = wrongs.subList(0, 2);
 
+        // Nếu chỉ có 1 đáp án sai, chỉ ẩn 1 đáp án
+        int answersToHide = Math.min(2, wrongs.size());
+        if (answersToHide == 0) {
+            return clone; // Không có đáp án sai để ẩn
+        }
+
+        Collections.shuffle(wrongs);
+        List<String> toHide = wrongs.subList(0, answersToHide);
+
+        // Ẩn các đáp án sai
         for (String ans : toHide) {
-            switch (ans) {
+            switch (ans.toUpperCase()) {
                 case "A":
                     clone.setAnswerA(null);
                     break;
@@ -81,6 +129,7 @@ public class QuestionService {
                     break;
             }
         }
+
         return clone;
     }
 
@@ -89,8 +138,12 @@ public class QuestionService {
         String quizId = questionRedisService.getQuizIdByRoomCode(roomCode);
         QuestionResponse question = questionRedisService.getQuestionById(quizId, questionId);
 
-        // Lấy clientSessionId từ player
-        Player player = playerRepository.findBySessionId(message.getSessionId()).orElse(null);
+        if (question == null) {
+            return null;
+        }
+
+        // Tìm người chơi theo clientSessionId
+        Player player = playerRepository.findByClientSessionId(message.getClientSessionId()).orElse(null);
         if (player == null) {
             return null;
         }
@@ -102,25 +155,32 @@ public class QuestionService {
         long timeTaken = message.getTimeTaken() != null ? message.getTimeTaken() : baseTimeLimit;
         int timeLimit = baseTimeLimit;
 
-        SupportCardResult card = questionRedisService.getSupportCard(roomCode, message.getSessionId());
+        // Kiểm tra xem người chơi có sử dụng support card không
+        SupportCardResult card = questionRedisService.getSupportCard(roomCode, message.getClientSessionId());
         boolean isCorrect = question.getCorrectAnswer().equalsIgnoreCase(message.getSelectedAnswer());
         int score = isCorrect ? calculateScore(timeTaken, timeLimit, baseScore) : 0;
+
         if (card != null && card.getQuestionId().equals(questionId)) {
             switch (card.getType()) {
                 case DOUBLE_SCORE:
-                    if (isCorrect)
+                    if (isCorrect) {
                         score *= 2;
+                    }
                     break;
                 case HALF_SCORE:
-                    if (isCorrect)
-                        score /= 2;
+                    if (isCorrect) {
+                        score = (int) (score * 0.5);
+                    }
                     break;
                 case SKIP_QUESTION:
                     isCorrect = false;
                     score = 0;
                     break;
+                case HIDE_ANSWER:
+                    break;
             }
-            questionRedisService.removeSupportCard(roomCode, message.getSessionId());
+            // Xóa card sau khi sử dụng
+            questionRedisService.removeSupportCard(roomCode, message.getClientSessionId());
         }
 
         TemporaryAnswer temp = new TemporaryAnswer(
@@ -132,7 +192,7 @@ public class QuestionService {
         playerRedisService.saveTemporaryAnswer(roomCode, clientSessionId, temp);
 
         AnswerResult result = new AnswerResult();
-        result.setSessionId(message.getSessionId());
+        result.setClientSessionId(message.getClientSessionId());
         result.setCorrect(isCorrect);
         result.setScore(score);
 
@@ -150,8 +210,11 @@ public class QuestionService {
 
     public QuestionResponse sendNextQuestion(String roomCode) {
         String quizId = questionRedisService.getQuizIdByRoomCode(roomCode);
-        int currentIndex = questionRedisService.getCurrentQuestionIndex(roomCode);
-
+        Integer currentIndex = questionRedisService.getCurrentQuestionIndex(roomCode);
+        if (currentIndex == null) {
+            currentIndex = 0;
+            questionRedisService.setCurrentQuestionIndex(roomCode, 0);
+        }
         String redisKey = "quiz:" + quizId + ":questions";
         Object cached = redisTemplate.opsForValue().get(redisKey);
         Long parsedQuizId = Long.parseLong(quizId);
@@ -184,10 +247,53 @@ public class QuestionService {
             }
         }
 
+        // Xóa tất cả support cards khi chuyển sang câu hỏi mới
+        clearAllSupportCards(roomCode);
+
         QuestionResponse next = questions.get(currentIndex);
         questionRedisService.setCurrentQuestionId(roomCode, next.getId());
         questionRedisService.setCurrentQuestionIndex(roomCode, currentIndex + 1);
         return next;
+
+    }
+
+    public QuestionResponse getCurrentQuestion(String roomCode) {
+        String quizId = questionRedisService.getQuizIdByRoomCode(roomCode);
+        Integer currentIndex = questionRedisService.getCurrentQuestionIndex(roomCode);
+        if (currentIndex == null) {
+            currentIndex = 0;
+            questionRedisService.setCurrentQuestionIndex(roomCode, 0);
+        }
+        // get question save in cache
+        String redisKey = "quiz:" + quizId + ":questions";
+        Object cached = redisTemplate.opsForValue().get(redisKey);
+        Long parsedQuizId = Long.parseLong(quizId);
+        List<QuestionResponse> questions;
+
+        if (cached != null && cached instanceof List<?>) {
+            questions = ((List<?>) cached).stream()
+                    .filter(obj -> obj instanceof LinkedHashMap)
+                    .map(obj -> QuestionResponse.convertFromMap((LinkedHashMap<String, Object>) obj))
+                    .collect(Collectors.toList());
+        } else {
+            List<Question> entities = questionRepository.findAllByQuiz_Id(parsedQuizId);
+            questions = entities.stream()
+                    .map(QuestionResponse::fromQuestionToQuestionResponse)
+                    .collect(Collectors.toList());
+
+            if (!questions.isEmpty()) {
+                redisTemplate.opsForValue().set(redisKey, questions);
+            }
+        }
+
+        if (currentIndex >= questions.size())
+            return null;
+
+        if (currentIndex > 0) {
+            Long prevId = questions.get(currentIndex - 1).getId();
+
+        }
+        return questions.get(currentIndex);
 
     }
 
@@ -244,7 +350,6 @@ public class QuestionService {
 
     @SuppressWarnings("unchecked")
     public QuestionResponse startGameAndGetFirstQuestion(String roomCode, String quizId) {
-        // questionRedisService.clearCachedQuestionsByQuizId(String.valueOf(quizId));
         String redisKey = "quiz:" + quizId + ":questions";
         questionRedisService.setQuizIdForRoomCode(roomCode, quizId);
         List<QuestionResponse> questions;
@@ -276,6 +381,17 @@ public class QuestionService {
 
     public void useSupportCard(String roomCode, String sessionId, SupportCardType type) {
         Long questionId = questionRedisService.getCurrentQuestionId(roomCode);
+        if (questionId == null) {
+            return; // Không có câu hỏi hiện tại
+        }
+
+        // Kiểm tra xem người chơi đã sử dụng card cho câu hỏi này chưa
+        SupportCardResult existingCard = questionRedisService.getSupportCard(roomCode, sessionId);
+        if (existingCard != null && existingCard.getQuestionId().equals(questionId)) {
+            // Người chơi đã sử dụng card cho câu hỏi này rồi
+            return;
+        }
+
         SupportCardResult result = new SupportCardResult();
         result.setSessionId(sessionId);
         result.setType(type);
@@ -286,8 +402,24 @@ public class QuestionService {
             case HIDE_ANSWER:
                 result.setEffectData(Map.of("Ẩn bớt câu hỏi", 2));
                 break;
+            case DOUBLE_SCORE:
+                result.setEffectData(Map.of("Nhân đôi điểm", 2));
+                break;
+            case HALF_SCORE:
+                result.setEffectData(Map.of("Giảm một nửa điểm", 0.5));
+                break;
+            case SKIP_QUESTION:
+                result.setEffectData(Map.of("Bỏ qua câu hỏi", "skip"));
+                break;
         }
         questionRedisService.saveSupportCard(roomCode, sessionId, result);
+    }
+
+    /**
+     * Xóa tất cả support cards trong phòng khi chuyển sang câu hỏi mới
+     */
+    private void clearAllSupportCards(String roomCode) {
+        questionRedisService.clearAllSupportCards(roomCode);
     }
 
     /**
@@ -374,6 +506,13 @@ public class QuestionService {
                 currentQuestionId);
         int currentScore = calculateCurrentScore(roomCode, clientSessionId);
 
+        // Kiểm tra xem người chơi có sử dụng card ẩn đáp án cho câu hỏi hiện tại không
+        boolean hasHideAnswerCard = hasHideAnswerCard(roomCode, clientSessionId, currentQuestionId);
+        if (hasHideAnswerCard && !hasAnsweredCurrent) {
+            // Nếu đã sử dụng card ẩn đáp án và chưa trả lời, trả về câu hỏi đã ẩn đáp án
+            currentQuestion = hideTwoAnswers(currentQuestion);
+        }
+
         ReconnectResponse response = ReconnectResponse.builder()
                 .success(true)
                 .message("Kết nối lại thành công")
@@ -431,6 +570,7 @@ public class QuestionService {
                 .sum();
     }
 
+    // Lấy tất cả câu hỏi từ cache
     private List<QuestionResponse> getQuestionsFromCache(String quizId) {
         String redisKey = "quiz:" + quizId + ":questions";
         Object cached = redisTemplate.opsForValue().get(redisKey);
@@ -469,14 +609,13 @@ public class QuestionService {
                     .totalQuestions(0)
                     .build();
         }
-
+        // lấy danh sách câu hỏi
         List<QuestionResponse> questions = getQuestionsFromCache(quizId);
         List<Player> players = playerRepository.findByRoom_RoomCode(roomCode);
 
         List<PlayerScoreResponse> playerScores = players.stream()
                 .map(player -> calculatePlayerScore(roomCode, player, questions))
-                .sorted((p1, p2) -> Integer.compare(p2.getTotalScore(), p1.getTotalScore())) // Sắp xếp theo điểm giảm
-                                                                                             // dần
+                .sorted((p1, p2) -> Integer.compare(p2.getTotalScore(), p1.getTotalScore()))
                 .collect(Collectors.toList());
 
         return LeaderboardResponse.builder()
@@ -486,10 +625,6 @@ public class QuestionService {
                 .totalQuestions(questions.size())
                 .build();
     }
-
-    /**
-     * Tính toán điểm số cho một người chơi
-     */
     private PlayerScoreResponse calculatePlayerScore(String roomCode, Player player, List<QuestionResponse> questions) {
         List<TemporaryAnswer> tempAnswers = playerRedisService.getTemporaryAnswers(roomCode,
                 player.getClientSessionId());

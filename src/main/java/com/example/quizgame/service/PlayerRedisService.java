@@ -6,6 +6,7 @@ import com.example.quizgame.dto.response.PlayerResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.quizgame.entity.Player;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,6 +25,14 @@ public class PlayerRedisService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
+    // xóa temp answer of room
+    public void deleteAllTemporaryAnswers(String roomCode) {
+        String pattern = "tempAnswer:" + roomCode + ":*";
+        Set<String> keys = redisTemplate.keys(pattern);
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+        }
+    }
 
     private String getPlayerListKey(String roomCode) {
         return "room:" + roomCode + ":players";
@@ -81,7 +91,7 @@ public class PlayerRedisService {
     private String getTempAnswersKey(String roomCode, String clientSessionId) {
         return "room:" + roomCode + ":answers:" + clientSessionId;
     }
-
+    // xem xét lưu danh sách của nhiều người thay vì lưu từng người
     public void saveTemporaryAnswer(String roomCode, String clientSessionId, TemporaryAnswer answer) {
         String key = getTempAnswersKey(roomCode, clientSessionId);
         redisTemplate.opsForList().rightPush(key, answer);

@@ -91,10 +91,6 @@
         <div class="support-cards">
           <h4><i class="fas fa-magic"></i> Thẻ hỗ trợ</h4>
           <div class="cards-container">
-            <button class="support-card" onclick="useSupportCard('EXTRA_TIME')">
-              <i class="fas fa-clock"></i>
-              <span>Thêm thời gian</span>
-            </button>
             <button
               class="support-card"
               onclick="useSupportCard('DOUBLE_SCORE')"
@@ -265,11 +261,95 @@
           }
         );
 
-        // Subscribe to personal time updates (when I use extra time card)
-        stompClient.subscribe("/user/queue/time-update", function (response) {
-          const timeUpdate = JSON.parse(response.body);
-          handleTimeUpdate(timeUpdate);
+        // Subscribe to reconnect response
+        stompClient.subscribe("/user/queue/reconnect", function (response) {
+          const data = JSON.parse(response.body);
+          if (data.success) {
+            addStatus("Kết nối lại thành công!", "success");
+            handleReconnectResponse(data);
+          }
         });
+
+        // Subscribe to reconnect error
+        stompClient.subscribe(
+          "/user/queue/reconnect-error",
+          function (response) {
+            const data = JSON.parse(response.body);
+            addStatus("Lỗi kết nối lại: " + data.message, "error");
+          }
+        );
+
+        // Subscribe to personal question (for reconnect)
+        stompClient.subscribe("/user/queue/question", function (response) {
+          const question = JSON.parse(response.body);
+          showQuestion(question);
+        });
+
+        // Send reconnect message if we have session info
+        sendReconnectMessage();
+      }
+
+      // Send reconnect message to server
+      function sendReconnectMessage() {
+        if (
+          !stompClient ||
+          !stompClient.connected ||
+          !currentRoomCode ||
+          !currentPlayerName ||
+          !clientSessionId
+        ) {
+          return;
+        }
+
+        stompClient.send(
+          "/app/room/" + currentRoomCode + "/reconnect",
+          {},
+          JSON.stringify({
+            playerName: currentPlayerName,
+            roomCode: currentRoomCode,
+            clientSessionId: clientSessionId,
+          })
+        );
+
+        console.log("Sent reconnect message for player:", currentPlayerName);
+      }
+
+      // Handle reconnect response from server
+      function handleReconnectResponse(data) {
+        console.log("Handling reconnect response:", data);
+
+        // Update current score
+        if (data.currentScore !== undefined) {
+          // Update score display if exists
+          const scoreElement = document.getElementById("score");
+          if (scoreElement) {
+            scoreElement.textContent = `Điểm: ${data.currentScore}`;
+          }
+        }
+
+        // Check if game is over
+        if (data.message && data.message.includes("Game đã kết thúc")) {
+          showGameOver("Game đã kết thúc. Bạn có thể xem điểm số cuối cùng.");
+          return;
+        }
+
+        // Show current question if provided and not answered
+        if (data.currentQuestion && !data.hasAnsweredCurrentQuestion) {
+          showQuestion(data.currentQuestion);
+        }
+
+        // Show last answer result if provided
+        if (data.lastAnswerResult) {
+          showAnswerResult(data.lastAnswerResult);
+        }
+
+        // Update question info if available
+        if (data.currentQuestionIndex && data.totalQuestions) {
+          const questionInfo = document.getElementById("questionInfo");
+          if (questionInfo) {
+            questionInfo.textContent = `Câu hỏi ${data.currentQuestionIndex}/${data.totalQuestions}`;
+          }
+        }
       }
 
       // Show room information
@@ -342,20 +422,12 @@
       }
 
       // Handle page unload
-      window.removeEventListener("beforeunload", function () {
-        if (stompClient) {
-          localStorage.removeItem("quizSessionInfo");
-          stompClient.disconnect();
-        }
-      });
-
-      // Thêm event listener beforeunload mới
       window.addEventListener("beforeunload", function (e) {
         if (stompClient) {
-          // Chỉ disconnect WebSocket, không xóa session info
+          // Chỉ disconnect WebSocket, không xóa session info để có thể reconnect
           stompClient.disconnect();
         }
-        // Không xóa localStorage ở đây
+        // Không xóa localStorage ở đây để có thể reconnect
       });
 
       // Auto-reconnect on connection loss
@@ -566,13 +638,10 @@
       // Timer variables
       let currentTimer = null;
       let timerInterval = null;
-      let myTimeLimit = 10000; // Default 10 seconds
 
       // Update timer
       function updateTimer(timer) {
         currentTimer = timer;
-        myTimeLimit =
-          timer.playerTimeLimits[clientSessionId] || timer.baseTimeLimit;
 
         // Clear existing timer
         if (timerInterval) {
@@ -580,7 +649,7 @@
         }
 
         // Start new timer
-        startTimer(timer.startTime, myTimeLimit);
+        startTimer(timer.startTime, timer.baseTimeLimit);
 
         addStatus("Timer đã được cập nhật!", "info");
       }
@@ -626,25 +695,6 @@
           timerDisplay.className =
             seconds <= 5 ? "timer-warning" : "timer-normal";
         }
-      }
-
-      // Handle time update (when I use extra time card)
-      function handleTimeUpdate(timeUpdate) {
-        // This is me using the card
-        myTimeLimit = timeUpdate.newTimeLimit;
-
-        // Cập nhật timer ngay lập tức với thời gian mới
-        if (currentTimer && timerInterval) {
-          clearInterval(timerInterval);
-          startTimer(currentTimer.startTime, myTimeLimit);
-        }
-
-        addStatus(
-          `⏰ Bạn đã thêm ${
-            timeUpdate.extraTime / 1000
-          } giây! Timer đã được cập nhật.`,
-          "success"
-        );
       }
 
       // Update leaderboard

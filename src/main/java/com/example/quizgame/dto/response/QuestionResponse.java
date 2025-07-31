@@ -43,7 +43,7 @@ public class QuestionResponse {
                 .answerB((String) map.get("answerB"))
                 .answerC((String) map.get("answerC"))
                 .answerD((String) map.get("answerD"))
-                .imageUrl((String) map.get("imageUrl"))
+                .imageUrl(map.get("imageUrl") != null ? (String) map.get("imageUrl") : null)
                 .score((Integer) map.get("score"))
                 .limitedTime((Integer) map.get("limitedTime"))
                 .correctAnswer((String) map.get("correctAnswer"))

@@ -16,5 +16,5 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
     Optional<Player> findByRoomIdAndSessionId(Long roomId, String sessionId);
     Optional<Player> findByRoom_RoomCodeAndSessionId(String roomCode, String sessionId);
     List<Player> findByRoom_RoomCode(String roomCode);
-
+    Optional<Player> findByClientSessionId(String clientSessionId);
 }
