@@ -5,6 +5,7 @@ import com.example.quizgame.dto.chat.CustomUserDetails;
 import com.example.quizgame.entity.ChatMessage;
 import com.example.quizgame.entity.User;
 import com.example.quizgame.reponsitory.ChatMessageRepository;
+import com.example.quizgame.service.BadWordFilterService;
 import com.example.quizgame.service.ChatProducer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -24,12 +25,16 @@ public class ChatController {
     private ChatMessageRepository chatRepo;
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
+    @Autowired
+    private BadWordFilterService badWordFilterService;
     @PostMapping("/send")
     public ResponseEntity<?> send(@RequestBody ChatMessageDTO dto,
                                   @AuthenticationPrincipal CustomUserDetails userDetails) {
         User user = userDetails.getUser();
         dto.setSenderId(user.getId());
         dto.setSenderUsername(user.getUsername());
+        String filteredContent = badWordFilterService.filter(dto.getContent());
+        dto.setContent(filteredContent);
         chatProducer.sendMessage(dto);
         messagingTemplate.convertAndSend("/topic/chat/" + dto.getGroupName(), dto);
         return ResponseEntity.ok("Đã gửi");

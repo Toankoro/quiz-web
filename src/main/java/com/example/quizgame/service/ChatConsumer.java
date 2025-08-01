@@ -33,20 +33,13 @@ public class ChatConsumer {
     public void consume(ChatMessageDTO dto) {
         ChatMessage message = new ChatMessage();
         message.setGroupName(dto.getGroupName());
-
-        // Lọc từ bậy
-        String filteredContent = badWordFilterService.filter(dto.getContent());
-        message.setContent(filteredContent);
-
         //  Tìm User từ senderId
         User sender = userRepo.findById(dto.getSenderId())
                 .orElseThrow(() -> new RuntimeException("Sender not found with ID: " + dto.getSenderId()));
 
         message.setSender(sender);
         message.setTimestamp(LocalDateTime.now());
-
         chatRepo.save(message);
-        System.out.println(" Đã lưu tin nhắn đã lọc: " + filteredContent);
 
         if (badWordFilterService.containsBadWords(dto.getContent())) {
             LocalDate today = LocalDate.now();
@@ -55,18 +48,17 @@ public class ChatConsumer {
                 Violation v = new Violation();
                 v.setUser(sender);
                 v.setCount(0);
-                v.setTimestamp(LocalDateTime.now());
+                v.setDate(today);  // Gán ngày hôm nay
                 return v;
             });
-            // Kiểm tra nếu ngày khác thì reset count
-            LocalDate lastViolatedDate = violation.getTimestamp().toLocalDate();
-            if (!today.equals(lastViolatedDate)) {
-                violation.setCount(1); // reset count về 1
+
+            if (!today.equals(violation.getDate())) {
+                violation.setCount(1); // reset về 1 nếu là ngày mới
             } else {
                 violation.setCount(violation.getCount() + 1);
             }
-            // Cập nhật thời gian
-            violation.setTimestamp(LocalDateTime.now());
+
+            // Phân loại vi phạm
             int count = violation.getCount();
             if (count <= 3) {
                 violation.setLevel("Nhẹ");
@@ -75,7 +67,11 @@ public class ChatConsumer {
             } else {
                 violation.setLevel("Nặng");
             }
+
+            violation.setDate(today); // Cập nhật lại ngày vi phạm
             violationRepo.save(violation);
         }
+
+
     }
 }

@@ -74,7 +74,7 @@ public class RoomService {
         p.setHost(false);
         participantRepo.save(p);
 
-        userService.increaseExp(user, 10); // Cộng 10 EXP mỗi lần tham gia
+        userService.increaseExp(user, 10);
         userRepository.save(user);
 
         messagingTemplate.convertAndSend("/topic/room/" + room.getId(), getParticipants(room));
@@ -116,7 +116,6 @@ public class RoomService {
 
         gameRankingRepo.saveAll(rankings);
 
-
         // Gửi thông báo "phòng đã bắt đầu"
         messagingTemplate.convertAndSend("/topic/room/" + roomId, "started");
 
@@ -129,7 +128,7 @@ public class RoomService {
 
 
     public void leaveRoom(User user, Long roomId) {
-        RoomParticipant p = participantRepo.findByRoomIdAndUserIdAndRoom_StartedAtIsNull(roomId, user.getId())
+        RoomParticipant p = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
                 .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này."));
 
         participantRepo.delete(p);

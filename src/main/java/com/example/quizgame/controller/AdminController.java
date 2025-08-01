@@ -71,7 +71,7 @@ public class AdminController {
                 v.getId(),
                 v.getUser().getUsername(),
                 v.getUser().getEmail(),
-                v.getTimestamp().toLocalDate(), // chỉ lấy ngày
+                v.getDate(),
                 v.getLevel()
         ));
     }

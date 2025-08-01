@@ -28,6 +28,11 @@ public class BadWordFilterService {
     public boolean containsBadWords(String input) {
         if (input == null) return false;
 
+        // ✅ Nếu chuỗi chứa '***' thì cũng coi là vi phạm
+        if (input.contains("***")) {
+            return true;
+        }
+
         for (String badWord : BAD_WORDS) {
             String pattern = "\\b" + Pattern.quote(badWord) + "\\b";
             if (Pattern.compile(pattern, Pattern.CASE_INSENSITIVE).matcher(input).find()) {

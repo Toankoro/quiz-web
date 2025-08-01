@@ -3,6 +3,7 @@ package com.example.quizgame.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -13,7 +14,7 @@ public class Violation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private LocalDateTime timestamp;
+    private LocalDate date;
     private int count;
     private String level;
 
