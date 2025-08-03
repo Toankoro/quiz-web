@@ -13,4 +13,5 @@ public interface ViolationRepository extends JpaRepository<Violation, Long> {
     Optional<Violation> findByUser(User user);
     Optional<Violation> findByUserAndDate(User user, LocalDate date);
     Page<Violation> findAll(Pageable pageable);
+
 }

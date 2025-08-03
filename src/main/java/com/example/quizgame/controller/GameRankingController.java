@@ -29,9 +29,7 @@ public class GameRankingController {
                                       @AuthenticationPrincipal CustomUserDetails userDetails) {
         Room room = roomRepo.findById(roomId).orElseThrow();
 
-        // Lấy User từ CustomUserDetails
         User user = userDetails.getUser();
-
         gameRankingService.addScoreAndCorrect(room, user, scoreAdd);
         return ResponseEntity.ok().build();
     }

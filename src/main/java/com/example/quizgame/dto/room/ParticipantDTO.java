@@ -11,6 +11,7 @@ import lombok.Setter;
 @Setter
 public class ParticipantDTO {
     private Long id;
-    private String lastname;
+    private String firstname;
+    private String avatar;
     private boolean isHost;
 }

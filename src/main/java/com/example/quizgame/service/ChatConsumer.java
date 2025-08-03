@@ -9,10 +9,12 @@ import com.example.quizgame.reponsitory.UserRepository;
 import com.example.quizgame.reponsitory.ViolationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 public class ChatConsumer {
@@ -29,10 +31,17 @@ public class ChatConsumer {
     @Autowired
     private ViolationRepository violationRepo;
 
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
+
     @KafkaListener(topics = "chat-topic", groupId = "chat-group")
     public void consume(ChatMessageDTO dto) {
         ChatMessage message = new ChatMessage();
         message.setGroupName(dto.getGroupName());
+        // Lọc từ bậy
+        String filteredContent = badWordFilterService.filter(dto.getContent());
+        message.setContent(filteredContent);
+
         //  Tìm User từ senderId
         User sender = userRepo.findById(dto.getSenderId())
                 .orElseThrow(() -> new RuntimeException("Sender not found with ID: " + dto.getSenderId()));
@@ -44,21 +53,23 @@ public class ChatConsumer {
         if (badWordFilterService.containsBadWords(dto.getContent())) {
             LocalDate today = LocalDate.now();
 
-            Violation violation = violationRepo.findByUser(sender).orElseGet(() -> {
-                Violation v = new Violation();
-                v.setUser(sender);
-                v.setCount(0);
-                v.setDate(today);  // Gán ngày hôm nay
-                return v;
-            });
+            // Tìm vi phạm trong ngày hôm nay của user
+            Optional<Violation> optionalViolation = violationRepo.findByUserAndDate(sender, today);
 
-            if (!today.equals(violation.getDate())) {
-                violation.setCount(1); // reset về 1 nếu là ngày mới
-            } else {
+            Violation violation;
+            if (optionalViolation.isPresent()) {
+                // Đã có vi phạm hôm nay → cập nhật số lần
+                violation = optionalViolation.get();
                 violation.setCount(violation.getCount() + 1);
+            } else {
+                // Chưa có bản ghi hôm nay → tạo mới
+                violation = new Violation();
+                violation.setUser(sender);
+                violation.setDate(today);
+                violation.setCount(1);
             }
 
-            // Phân loại vi phạm
+            // Xác định mức độ vi phạm
             int count = violation.getCount();
             if (count <= 3) {
                 violation.setLevel("Nhẹ");
@@ -68,10 +79,9 @@ public class ChatConsumer {
                 violation.setLevel("Nặng");
             }
 
-            violation.setDate(today); // Cập nhật lại ngày vi phạm
+            // Lưu lại
             violationRepo.save(violation);
         }
-
 
     }
 }

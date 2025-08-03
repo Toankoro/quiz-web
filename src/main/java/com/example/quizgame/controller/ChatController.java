@@ -33,9 +33,9 @@ public class ChatController {
         User user = userDetails.getUser();
         dto.setSenderId(user.getId());
         dto.setSenderUsername(user.getUsername());
+        chatProducer.sendMessage(dto);
         String filteredContent = badWordFilterService.filter(dto.getContent());
         dto.setContent(filteredContent);
-        chatProducer.sendMessage(dto);
         messagingTemplate.convertAndSend("/topic/chat/" + dto.getGroupName(), dto);
         return ResponseEntity.ok("Đã gửi");
     }

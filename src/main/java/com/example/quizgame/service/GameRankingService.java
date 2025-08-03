@@ -35,14 +35,11 @@ public class GameRankingService {
         GameRanking ranking = optional.get();
         ranking.setScore(ranking.getScore() + scoreToAdd);
         if(scoreToAdd>0){
-            ranking.setCorrectCount(ranking.getCorrectCount() + 1);// tăng số câu đúng
+            ranking.setCorrectCount(ranking.getCorrectCount() + 1);
         }
         rankingRepo.save(ranking);
-
         updateRanksAndBroadcast(room);
     }
-
-
 
     // Gửi WebSocket ranking qua Kafka
     public void updateRanksAndBroadcast(Room room) {
@@ -51,11 +48,9 @@ public class GameRankingService {
             rankings.get(i).setRanking(i + 1);
         }
         rankingRepo.saveAll(rankings);
-
         List<GameRankingDTO> dtoList = rankings.stream()
                 .map(GameRankingDTO::from)
                 .collect(Collectors.toList());
-
         kafkaTemplate.send("room-rankings", room.getId().toString(), dtoList);
     }
 

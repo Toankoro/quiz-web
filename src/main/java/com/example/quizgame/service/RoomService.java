@@ -37,7 +37,6 @@ public class RoomService {
         }
 
         Quiz quiz = quizRepo.findById(quizId).orElseThrow(() -> new RuntimeException("Quiz không tồn tại"));
-
         String pin = RandomStringUtils.randomAlphanumeric(6).toUpperCase();
         String qrUrl = qrCodeGenerator.generateBase64QRCode("JOIN-" + pin);
 
@@ -115,18 +114,16 @@ public class RoomService {
         }
 
         gameRankingRepo.saveAll(rankings);
-
         // Gửi thông báo "phòng đã bắt đầu"
         messagingTemplate.convertAndSend("/topic/room/" + roomId, "started");
 
         // Trả về danh sách người chơi KHÔNG phải host
         return participants.stream()
                 .filter(p -> !p.isHost())
-                .map(p -> new ParticipantDTO(p.getUser().getId(), p.getUser().getFirstname(), false))
+                .map(p -> new ParticipantDTO(p.getUser().getId(), p.getUser().getFirstname(), p.getUser().getAvatar(),false))
                 .toList();
     }
-
-
+    
     public void leaveRoom(User user, Long roomId) {
         RoomParticipant p = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
                 .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này."));
@@ -155,14 +152,14 @@ public class RoomService {
         RoomParticipant p = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
                 .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này."));
 
-        Room room = p.getRoom(); // hoặc roomRepo.findById(roomId).get()
+        Room room = p.getRoom();
         return getParticipants(room);
     }
 
 
     private List<ParticipantDTO> getParticipants(Room room) {
         return room.getParticipants().stream().map(rp ->
-                new ParticipantDTO(rp.getUser().getId(), rp.getUser().getFirstname(), rp.isHost())
+                new ParticipantDTO(rp.getUser().getId(), rp.getUser().getFirstname(),rp.getUser().getAvatar(), rp.isHost())
         ).toList();
     }
 
@@ -179,7 +176,6 @@ public class RoomService {
         if (!participant.isHost()) {
             throw new AccessDeniedException("Bạn không phải chủ phòng");
         }
-
         // Xóa bản ghi liên quan
         gameRankingRepo.deleteByRoomId(roomId);
         participantRepo.deleteAllByRoomId(roomId);
