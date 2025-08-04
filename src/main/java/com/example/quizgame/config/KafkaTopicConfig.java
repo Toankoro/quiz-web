@@ -10,11 +10,16 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic kahootTopic () {
-        return TopicBuilder.name("kahoot").build();
+        return TopicBuilder.name("send-mail").build();
     }
 
     @Bean
     public NewTopic kahootJsonTopic () {
-        return TopicBuilder.name("kahoot_json").build();
+        return TopicBuilder.name("send-mail-json").build();
+    }
+
+    @Bean
+    public NewTopic kahootChatTopic () {
+        return TopicBuilder.name("chat-topic").build();
     }
 }

@@ -7,16 +7,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AllArgsConstructor
-public class PlayerListenner {
-    private static final Logger logger = LoggerFactory.getLogger(PlayerListenner.class);
+public class RoomParticipantListenner {
+    private static final Logger logger = LoggerFactory.getLogger(RoomParticipantListenner.class);
 
     @PrePersist
-    public void prePersist (Player player) {
+    public void prePersist (RoomParticipant player) {
         logger.info("pre persist player");
     }
 
     @PostPersist
-    public void postPersist (Player player) {
+    public void postPersist (RoomParticipant player) {
         logger.info("post persist player");
 
     }

@@ -5,6 +5,7 @@ import com.example.quizgame.dto.room.RoomResponse;
 import com.example.quizgame.entity.*;
 import com.example.quizgame.qr.QRCodeGenerator;
 import com.example.quizgame.reponsitory.*;
+import com.example.quizgame.security.JwtUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -27,6 +28,8 @@ public class RoomService {
     private final QRCodeGenerator qrCodeGenerator;
     private final SimpMessagingTemplate messagingTemplate;
     private final UserService userService;
+    private final RoomParticipantRedisService redisService;
+    private final JwtUtil jwtUtil;
     @Autowired
     private UserRepository userRepository;
     private final GameRankingRepository gameRankingRepo;
@@ -73,7 +76,6 @@ public class RoomService {
         p.setUser(user);
         p.setHost(false);
         participantRepo.save(p);
-
         userService.increaseExp(user, 10); // Cộng 10 EXP mỗi lần tham gia
         userRepository.save(user);
 
@@ -127,6 +129,16 @@ public class RoomService {
                 .toList();
     }
 
+    public boolean isHostRoom (Long roomId, User user) {
+        Room room = roomRepo.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("Phòng không tồn tại"));
+
+        RoomParticipant participant = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
+                .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này"));
+
+        return participant.isHost();
+    }
+
 
     public void leaveRoom(User user, Long roomId) {
         RoomParticipant p = participantRepo.findByRoomIdAndUserIdAndRoom_StartedAtIsNull(roomId, user.getId())
@@ -155,8 +167,7 @@ public class RoomService {
         // Kiểm tra user có ở trong phòng không
         RoomParticipant p = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
                 .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này."));
-
-        Room room = p.getRoom(); // hoặc roomRepo.findById(roomId).get()
+        Room room = p.getRoom();
         return getParticipants(room);
     }
 

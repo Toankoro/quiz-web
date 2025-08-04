@@ -13,5 +13,8 @@ import java.util.List;
 @NoArgsConstructor
 public class QuizRequest {
     private String title;
+    private String name;
+    private String visibleTo;
+    private String imageUrl;
     private List<QuestionRequest> questions;
 }

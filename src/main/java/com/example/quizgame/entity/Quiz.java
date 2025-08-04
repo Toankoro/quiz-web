@@ -15,10 +15,11 @@ public class Quiz {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String title;
+    private String name;
     @OneToMany(mappedBy = "quiz", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Question> questions = new ArrayList<>();
     private String description;
-    private String visibleTo; // public, private
+    private String visibleTo; // public, private để boolean chứ
     private String imageUrl;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)

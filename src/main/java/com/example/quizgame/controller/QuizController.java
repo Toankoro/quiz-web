@@ -24,11 +24,14 @@ public class QuizController {
         this.quizRepository = quizRepository;
         this.favoriteQuizService = favoriteQuizService;
     }
-
+// Tạo bộ câu hỏi
     @PostMapping
     public ResponseEntity<QuizResponse> createQuiz(@RequestBody QuizRequest quizRequest) {
         Quiz quiz = new Quiz();
         quiz.setTitle(quizRequest.getTitle());
+        quiz.setVisibleTo(quizRequest.getVisibleTo());
+        quiz.setImageUrl(quizRequest.getImageUrl());
+        quiz.setName(quizRequest.getName());
         List<Question> questions = quizRequest.getQuestions().stream().map(qr -> {
             Question q = new Question();
             q.setContent(qr.getContent());
@@ -53,6 +56,7 @@ public class QuizController {
                         q.getAnswerC(),
                         q.getAnswerD(),
                         q.getImageUrl(),
+                        q.getDescription(),
                         q.getCorrectAnswer(),
                         q.getLimitedTime(),
                         q.getScore()))
@@ -74,6 +78,7 @@ public class QuizController {
                                     .map(q -> new QuestionResponse(
                                             q.getId(),
                                             q.getContent(),
+                                            q.getDescription(),
                                             q.getAnswerA(),
                                             q.getAnswerB(),
                                             q.getAnswerC(),
@@ -102,6 +107,7 @@ public class QuizController {
                 .map(q -> new QuestionResponse(
                         q.getId(),
                         q.getContent(),
+                        q.getDescription(),
                         q.getAnswerA(),
                         q.getAnswerB(),
                         q.getAnswerC(),

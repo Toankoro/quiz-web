@@ -1,6 +1,6 @@
 package com.example.quizgame.service;
 
-import com.example.quizgame.dto.SupportCardResult;
+import com.example.quizgame.dto.supportcard.SupportCardResult;
 import com.example.quizgame.dto.response.QuestionResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -19,31 +19,31 @@ public class QuestionRedisService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
-
-    private String getCurrentQuestionIdKey(String roomCode) {
-        return "room:" + roomCode + ":question_current";
+    // key get current question id
+    private String getCurrentQuestionIdKey(String pinCode) {
+        return "room:" + pinCode + ":question_current";
+    }
+    // key get current index question
+    private String getCurrentIndexKey(String pinCode) {
+        return "room:" + pinCode + ":currentIndex";
+    }
+    // key quiz id
+    private String getQuizIdKey(String pinCode) {
+        return "room:" + pinCode + ":quizId";
     }
 
-    private String getCurrentIndexKey(String roomCode) {
-        return "room:" + roomCode + ":currentIndex";
-    }
-
-    private String getQuizIdKey(String roomCode) {
-        return "room:" + roomCode + ":quizId";
-    }
-
-    public void setCurrentQuestionId(String roomCode, Long questionId) {
-        String key = getCurrentQuestionIdKey(roomCode);
+    // set current question id
+    public void setCurrentQuestionId(String pinCode, Long questionId) {
+        String key = getCurrentQuestionIdKey(pinCode);
         if (questionId != null) {
             stringRedisTemplate.opsForValue().set(key, questionId.toString());
         } else {
             stringRedisTemplate.delete(key);
         }
     }
-
-
-    public Long getCurrentQuestionId(String roomCode) {
-        String key = getCurrentQuestionIdKey(roomCode);
+    // get current question id
+    public Long getCurrentQuestionId(String pinCode) {
+        String key = getCurrentQuestionIdKey(pinCode);
         String value = stringRedisTemplate.opsForValue().get(key);
         if (value == null)
             return null;
@@ -53,62 +53,46 @@ public class QuestionRedisService {
             return null;
         }
     }
-
-    public void setCurrentQuestionIndex(String roomCode, int index) {
-        redisTemplate.opsForValue().set(getCurrentIndexKey(roomCode), index);
+    // set current question index
+    public void setCurrentQuestionIndex(String pinCode, int index) {
+        redisTemplate.opsForValue().set(getCurrentIndexKey(pinCode), index);
     }
-
-    public int getCurrentQuestionIndex(String roomCode) {
-        Object value = redisTemplate.opsForValue().get(getCurrentIndexKey(roomCode));
+    // get current question index
+    public int getCurrentQuestionIndex(String pinCode) {
+        Object value = redisTemplate.opsForValue().get(getCurrentIndexKey(pinCode));
         if (value instanceof Integer)
             return (Integer) value;
         if (value instanceof String)
             return Integer.parseInt((String) value);
         return 0;
     }
-
-    public void setQuizIdForRoomCode(String roomCode, String quizId) {
-        redisTemplate.opsForValue().set(getQuizIdKey(roomCode), quizId);
+    // set quizId for pinCode
+    public void setQuizIdForPinCode(String pinCode, String quizId) {
+        redisTemplate.opsForValue().set(getQuizIdKey(pinCode), quizId);
     }
-
-    // get quizid by room code cache
-    public String getQuizIdByRoomCode(String roomCode) {
-        Object value = redisTemplate.opsForValue().get(getQuizIdKey(roomCode));
+    // get quizid by pinCode
+    public String getQuizIdByPinCode(String pinCode) {
+        Object value = redisTemplate.opsForValue().get(getQuizIdKey(pinCode));
         return value != null ? value.toString() : null;
     }
-
-    public void saveSupportCard(String roomCode, String sessionId, SupportCardResult result) {
-        String key = "card:" + roomCode + ":" + sessionId;
+    // save support card for user
+    public void saveSupportCard(String roomCode, String username, SupportCardResult result) {
+        String key = "card:" + roomCode + ":" + username;
         redisTemplate.opsForValue().set(key, result);
     }
 
-    public SupportCardResult getSupportCard(String roomCode, String sessionId) {
-        String key = "card:" + roomCode + ":" + sessionId;
+    // get support card for user
+    public SupportCardResult getSupportCard(String roomCode, String username) {
+        String key = "card:" + roomCode + ":" + username;
         Object value = redisTemplate.opsForValue().get(key);
         return objectMapper.convertValue(value, SupportCardResult.class);
     }
 
-    public void removeSupportCard(String roomCode, String sessionId) {
-        String key = "card:" + roomCode + ":" + sessionId;
+    public void removeSupportCard(String pinCode, String username) {
+        String key = "card:" + pinCode + ":" + username;
         redisTemplate.delete(key);
     }
 
-    /**
-     * Xóa tất cả support cards trong phòng
-     */
-    public void clearAllSupportCards(String roomCode) {
-        String pattern = "card:" + roomCode + ":*";
-        Set<String> keys = redisTemplate.keys(pattern);
-        if (keys != null && !keys.isEmpty()) {
-            redisTemplate.delete(keys);
-        }
-    }
-
-    // clear() cache câu hỏi nếu update, insert, create
-    public void clearCachedQuestionsByQuizId(String quizId) {
-        String redisKey = "quiz:" + quizId + ":questions";
-        redisTemplate.delete(redisKey);
-    }
 
     public QuestionResponse getQuestionById(String quizId, Long questionId) {
         String redisKey = "quiz:" + quizId + ":questions";
@@ -125,24 +109,4 @@ public class QuestionRedisService {
         return null;
     }
 
-    // Quản lý thời gian cho câu hỏi
-    private String getQuestionTimerKey(String roomCode, Long questionId) {
-        return "timer:" + roomCode + ":" + questionId;
-    }
-
-    public void setQuestionStartTime(String roomCode, Long questionId) {
-        String key = getQuestionTimerKey(roomCode, questionId);
-        redisTemplate.opsForValue().set(key + ":start", System.currentTimeMillis());
-    }
-
-    public Long getQuestionStartTime(String roomCode, Long questionId) {
-        String key = getQuestionTimerKey(roomCode, questionId);
-        Object value = redisTemplate.opsForValue().get(key + ":start");
-        return value != null ? (Long) value : null;
-    }
-
-    public void clearQuestionTimer(String roomCode, Long questionId) {
-        String key = getQuestionTimerKey(roomCode, questionId);
-        redisTemplate.delete(key + ":start");
-    }
 }

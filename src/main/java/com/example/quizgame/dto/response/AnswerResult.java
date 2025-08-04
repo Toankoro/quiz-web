@@ -8,8 +8,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class AnswerResult {
-    private String sessionId;
-    private String clientSessionId;
     private boolean correct;
     private String playerName;
     private int score;

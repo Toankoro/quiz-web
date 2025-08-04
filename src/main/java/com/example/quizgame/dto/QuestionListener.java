@@ -21,7 +21,7 @@ public class QuestionListener {
             Long quizId = question.getQuiz().getId();
             logger.info("Clearing Redis cache for quizId={}", quizId);
             QuestionRedisService questionRedisService = BeanUtil.getBean(QuestionRedisService.class);
-            questionRedisService.clearCachedQuestionsByQuizId(String.valueOf(quizId));
+//            questionRedisService.clearCachedQuestionsByQuizId(String.valueOf(quizId));
         }
     }
 }
