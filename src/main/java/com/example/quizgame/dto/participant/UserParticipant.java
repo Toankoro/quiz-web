@@ -1,4 +1,4 @@
-package com.example.quizgame.dto;
+package com.example.quizgame.dto.participant;
 
 import com.example.quizgame.entity.User;
 import lombok.AllArgsConstructor;

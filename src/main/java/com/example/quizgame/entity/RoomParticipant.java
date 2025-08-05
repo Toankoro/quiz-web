@@ -1,5 +1,5 @@
 package com.example.quizgame.entity;
-import com.example.quizgame.dto.PlayerAnswer;
+import com.example.quizgame.dto.answer.PlayerAnswer;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

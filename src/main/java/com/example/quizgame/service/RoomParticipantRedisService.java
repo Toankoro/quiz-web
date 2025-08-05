@@ -1,9 +1,6 @@
 package com.example.quizgame.service;
 
-import com.example.quizgame.dto.TemporaryAnswer;
-import com.example.quizgame.dto.response.RoomParticipantResponse;
-import com.example.quizgame.dto.supportcard.SupportCardResult;
-import com.example.quizgame.entity.RoomParticipant;
+import com.example.quizgame.dto.answer.TemporaryAnswer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 

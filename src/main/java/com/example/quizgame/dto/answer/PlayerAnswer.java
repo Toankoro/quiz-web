@@ -1,4 +1,4 @@
-package com.example.quizgame.dto;
+package com.example.quizgame.dto.answer;
 
 import com.example.quizgame.entity.Question;
 import com.example.quizgame.entity.RoomParticipant;

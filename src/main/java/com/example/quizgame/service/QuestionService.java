@@ -1,7 +1,7 @@
 package com.example.quizgame.service;
 
-import com.example.quizgame.dto.AnswerMessage;
-import com.example.quizgame.dto.TemporaryAnswer;
+import com.example.quizgame.dto.answer.AnswerMessage;
+import com.example.quizgame.dto.answer.TemporaryAnswer;
 import com.example.quizgame.dto.response.AnswerResult;
 import com.example.quizgame.dto.response.QuestionResponse;
 import com.example.quizgame.dto.supportcard.SupportCardResult;
