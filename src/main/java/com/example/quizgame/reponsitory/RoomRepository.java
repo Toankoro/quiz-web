@@ -7,5 +7,7 @@ import java.util.Optional;
 
 public interface RoomRepository extends JpaRepository<Room, Long> {
     Optional<Room> findByPinCodeAndStartedAtIsNull(String pin);
+    Optional<Room> findByPinCode(String pin);
+
 }
 

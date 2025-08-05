@@ -10,7 +10,7 @@ public class BadWordFilterService {
 
     // Danh sách từ cấm (bạn có thể load từ file hoặc DB nếu muốn)
     private static final List<String> BAD_WORDS = Arrays.asList(
-            "đm", "vl", "vcl", "cmm", "cc", "cl", "lồn", "địt", "cặc","chó"
+            "đéo","đm", "vl", "vcl", "cmm", "cc", "cl", "lồn", "địt", "cặc","chó"
     );
 
     public String filter(String input) {

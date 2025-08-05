@@ -25,12 +25,12 @@ public class JwtUtil {
         byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
-
+    // sinh token
     public String generateToken(UserDetails userDetails) {
         String username = userDetails.getUsername();
         String role = userDetails.getAuthorities().stream()
                 .findFirst().map(GrantedAuthority::getAuthority).orElse("ROLE_USER");
-
+        //  thông tin trong phần jwt
         return Jwts.builder()
                 .setSubject(username)
                 .claim("role", role)
@@ -39,7 +39,7 @@ public class JwtUtil {
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
-
+    // lấy ra thông tin username
     public String extractUsername(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())
@@ -48,7 +48,7 @@ public class JwtUtil {
                 .getBody()
                 .getSubject();
     }
-
+    // lấy thông tin role người dùng
     public String extractRole(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())
@@ -59,6 +59,7 @@ public class JwtUtil {
     }
 
 
+    // Kiểm tra tính hợp lệ của token
     public boolean isTokenValid(String token, UserDetails userDetails) {
         String username = extractUsername(token);
         return username.equals(userDetails.getUsername());

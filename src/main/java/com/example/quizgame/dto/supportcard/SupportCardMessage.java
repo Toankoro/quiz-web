@@ -1,4 +1,4 @@
-package com.example.quizgame.dto;
+package com.example.quizgame.dto.supportcard;
 
 import lombok.Data;
 

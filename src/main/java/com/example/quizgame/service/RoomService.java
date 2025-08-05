@@ -1,10 +1,12 @@
 package com.example.quizgame.service;
 
 import com.example.quizgame.dto.room.ParticipantDTO;
+import com.example.quizgame.dto.room.RoomJoinResponse;
 import com.example.quizgame.dto.room.RoomResponse;
 import com.example.quizgame.entity.*;
 import com.example.quizgame.qr.QRCodeGenerator;
 import com.example.quizgame.reponsitory.*;
+import com.example.quizgame.security.JwtUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -14,8 +16,7 @@ import org.springframework.stereotype.Service;
 
 import org.springframework.security.access.AccessDeniedException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,8 @@ public class RoomService {
     private final QRCodeGenerator qrCodeGenerator;
     private final SimpMessagingTemplate messagingTemplate;
     private final UserService userService;
+    private final RoomParticipantRedisService roomParticipantRedisService;
+    private final JwtUtil jwtUtil;
     @Autowired
     private UserRepository userRepository;
     private final GameRankingRepository gameRankingRepo;
@@ -57,7 +60,7 @@ public class RoomService {
         return RoomResponse.from(saved);
     }
 
-    public RoomResponse joinRoom(String pin, User user) {
+    public RoomJoinResponse joinRoom(String pin, User user) {
         Room room = roomRepo.findByPinCodeAndStartedAtIsNull(pin)
                 .orElseThrow(() -> new RuntimeException("Phòng không tồn tại hoặc đã bắt đầu"));
 
@@ -72,12 +75,12 @@ public class RoomService {
         p.setUser(user);
         p.setHost(false);
         participantRepo.save(p);
-
-        userService.increaseExp(user, 10);
+        userService.increaseExp(user, 10); // Cộng 10 EXP mỗi lần tham gia
         userRepository.save(user);
-
+        // create and store client session id in redis
+        String clientSessionId = roomParticipantRedisService.createAndStoreClientSession(pin, user.getUsername());
         messagingTemplate.convertAndSend("/topic/room/" + room.getId(), getParticipants(room));
-        return RoomResponse.from(room);
+        return RoomJoinResponse.from(room, clientSessionId);
     }
 
     public List<ParticipantDTO> startRoom(Long roomId, User user) {
@@ -123,7 +126,17 @@ public class RoomService {
                 .map(p -> new ParticipantDTO(p.getUser().getId(), p.getUser().getFirstname(), p.getUser().getAvatar(),false))
                 .toList();
     }
-    
+
+    public boolean isHostRoom (Long roomId, User user) {
+        Room room = roomRepo.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("Phòng không tồn tại"));
+
+        RoomParticipant participant = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
+                .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này"));
+
+        return participant.isHost();
+    }
+
     public void leaveRoom(User user, Long roomId) {
         RoomParticipant p = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
                 .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này."));
@@ -151,7 +164,6 @@ public class RoomService {
         // Kiểm tra user có ở trong phòng không
         RoomParticipant p = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
                 .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này."));
-
         Room room = p.getRoom();
         return getParticipants(room);
     }

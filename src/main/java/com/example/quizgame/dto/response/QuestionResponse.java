@@ -1,7 +1,9 @@
 package com.example.quizgame.dto.response;
 
 import com.example.quizgame.entity.Question;
+import jakarta.persistence.Lob;
 import lombok.*;
+import org.apache.kafka.shaded.io.opentelemetry.proto.trace.v1.Span;
 
 import java.util.Map;
 
@@ -13,6 +15,7 @@ import java.util.Map;
 public class QuestionResponse {
     private Long id;
     private String content;
+    private String description;
     private String answerA;
     private String answerB;
     private String answerC;
@@ -25,6 +28,7 @@ public class QuestionResponse {
        return QuestionResponse.builder()
                .id(question.getId())
                .content(question.getContent())
+               .description(question.getDescription())
                .answerA(question.getAnswerA())
                .answerB(question.getAnswerB())
                .answerC(question.getAnswerC())
@@ -39,6 +43,7 @@ public class QuestionResponse {
         return QuestionResponse.builder()
                 .id(Long.valueOf(map.get("id").toString()))
                 .content((String) map.get("content"))
+                .description((String) map.get("description"))
                 .answerA((String) map.get("answerA"))
                 .answerB((String) map.get("answerB"))
                 .answerC((String) map.get("answerC"))

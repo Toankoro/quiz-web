@@ -1,0 +1,26 @@
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+<script>
+    const clientSessionId = "abc123"; // Sinh sau đăng nhập và lưu lại
+
+    const socket = new SockJS("http://localhost:8080/ws");
+    const stompClient = Stomp.over(socket);
+
+    stompClient.connect({ clientSessionId }, (frame) => {
+        console.log("Connected:", frame);
+
+        stompClient.subscribe("/user/queue/notify", (msg) => {
+            console.log("Message from server:", msg.body);
+        });
+    });
+
+    // Gọi thử API gửi tin
+    function sendTestMessage() {
+        fetch("http://localhost:8080/api/ws/send?clientSessionId=abc123", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify("Hello from backend")
+        });
+    }
+</script>

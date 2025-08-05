@@ -1,7 +1,7 @@
-package com.example.quizgame.dto;
+package com.example.quizgame.dto.answer;
 
-import com.example.quizgame.entity.Player;
 import com.example.quizgame.entity.Question;
+import com.example.quizgame.entity.RoomParticipant;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,7 +17,10 @@ public class PlayerAnswer {
     private Long id;
 
     @ManyToOne
-    private Player player;
+    @JoinColumn(name = "room_participant_id")
+    private RoomParticipant roomParticipant;
+
+    private String sessionId;
 
     @ManyToOne
     private Question question;
@@ -30,5 +33,4 @@ public class PlayerAnswer {
 
     private Integer score;
 
-    private String sessionId;
 }

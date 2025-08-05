@@ -19,14 +19,16 @@ public class Question {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String content;
+    @Column(columnDefinition = "LONGTEXT")
+    private String description;
     private String answerA;
     private String answerB;
     private String answerC;
     private String answerD;
     private String imageUrl;
+    
     @NotBlank(message = "Chưa chọn đáp án đúng")
     private String correctAnswer;
-
     private Integer limitedTime;
     private Integer score;
 

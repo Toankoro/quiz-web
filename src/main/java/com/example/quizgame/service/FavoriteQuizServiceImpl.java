@@ -102,6 +102,7 @@ public class FavoriteQuizServiceImpl implements FavoriteQuizService {
                                 .map(q -> new QuestionResponse(
                                                 q.getId(),
                                                 q.getContent(),
+                                                q.getDescription(),
                                                 q.getAnswerA(),
                                                 q.getAnswerB(),
                                                 q.getAnswerC(),
@@ -115,7 +116,7 @@ public class FavoriteQuizServiceImpl implements FavoriteQuizService {
                 return new FavoriteQuizResponse(
                                 favoriteQuiz.getId(),
                                 quiz.getId(),
-                                quiz.getTitle(),
+                                quiz.getTopic(),
                                 favoriteQuiz.getCreatedAt(),
                                 questionResponses);
         }

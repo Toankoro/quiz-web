@@ -7,11 +7,11 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 @Service
-public class JsonKafkaConsumer {
-    private static final Logger logger = LoggerFactory.getLogger(JsonKafkaConsumer.class);
+public class MailKafkaConsumer {
+    private static final Logger logger = LoggerFactory.getLogger(MailKafkaConsumer.class);
 
     @KafkaListener(topics="kahoot_json", groupId = "group_id")
-    public void consume (MessageKafka message) {
+    public void consume(MessageKafka message) {
         logger.info(String.format("Json message received -> %s", message));
     }
 }
