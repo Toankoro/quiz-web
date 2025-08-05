@@ -12,9 +12,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,6 +24,10 @@ public class RoomParticipantRedisService {
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
 
+
+    private static final String SESSION_PREFIX = "room:%s:clientSession:%s";
+    private static final long EXPIRATION_DAYS = 1;
+    private static final String PLAYER_LIST_PREFIX = "room:%s:players";
     // delete all temporary question
     public void deleteAllTemporaryAnswers(String roomCode) {
         String pattern = "tempAnswer:" + roomCode + ":*";
@@ -34,28 +37,9 @@ public class RoomParticipantRedisService {
         }
     }
     // get list players in room
-    private String getPlayerListKey(String pinCode) {
-        return "room:" + pinCode + ":players";
+    private String getRoomParticipantListKey(String pinCode) {
+        return String.format(PLAYER_LIST_PREFIX, pinCode);
     }
-
-    // add participant to room
-    public void addRoomParticipantToRoom(String pinCode, RoomParticipant roomParticipant) {
-        String key = getPlayerListKey(pinCode);
-        RoomParticipantResponse response = RoomParticipantResponse.fromRoomParticipantToResponse(roomParticipant);
-        redisTemplate.opsForList().rightPush(key, response);
-    }
-    // get list roomparticipant in room
-    public List<RoomParticipantResponse> getRoomParticipantInRoom(String roomCode) {
-        String key = getPlayerListKey(roomCode);
-        Long size = redisTemplate.opsForList().size(key);
-        if (size == null || size == 0)
-            return new ArrayList<>();
-        return redisTemplate.opsForList().range(key, 0, size - 1)
-                .stream()
-                .map(obj -> objectMapper.convertValue(obj, RoomParticipantResponse.class))
-                .toList();
-    }
-
     private String getTempAnswersKey(String roomCode, String username) {
         return "room:" + roomCode + ":answers:" + username;
     }
@@ -78,6 +62,59 @@ public class RoomParticipantRedisService {
 
     public void deleteTemporaryAnswers(String pinCode, String username) {
         redisTemplate.delete(getTempAnswersKey(pinCode, username));
+    }
+
+    private String getSessionKey(String roomCode, String clientSessionId) {
+        return String.format(SESSION_PREFIX, roomCode, clientSessionId);
+    }
+    public String createAndStoreClientSession(String roomCode, String username) {
+        String clientSessionId = UUID.randomUUID().toString();
+        String key = getSessionKey(roomCode, clientSessionId);
+        redisTemplate.opsForValue().set(key, username, EXPIRATION_DAYS, TimeUnit.DAYS);
+        String playerListKey = getRoomParticipantListKey(roomCode);
+        redisTemplate.opsForSet().add(playerListKey, username);
+
+        return clientSessionId;
+    }
+
+    public String getUsernameFromClientSession(String pinCode, String clientSessionId) {
+        String key = getSessionKey(pinCode, clientSessionId);
+        Object value = redisTemplate.opsForValue().get(key);
+        return value != null ? value.toString() : null;
+    }
+
+    public void removeClientSession(String roomCode, String clientSessionId) {
+        String key = getSessionKey(roomCode, clientSessionId);
+        redisTemplate.delete(key);
+    }
+
+
+    public void addRoomParticipant(String pinCode, String username) {
+        String roomParticipantListKey = getRoomParticipantListKey(pinCode);
+        redisTemplate.opsForSet().add(roomParticipantListKey, username);
+    }
+
+    // get room participant list set
+    public Set<String> getRoomParticipantList(String pinCode) {
+        String playerListKey = getRoomParticipantListKey(pinCode);
+        Set<Object> rawSet = redisTemplate.opsForSet().members(playerListKey);
+
+        if (rawSet == null) return Collections.emptySet();
+
+        return rawSet.stream()
+                .filter(Objects::nonNull)
+                .map(Object::toString)
+                .collect(Collectors.toSet());
+    }
+
+    public void removeRoomParticipant(String pinCode, String username) {
+        String playerListKey = getRoomParticipantListKey(pinCode);
+        redisTemplate.opsForSet().remove(playerListKey, username);
+    }
+
+    public void clearRoomParticipantList(String pinCode) {
+        String playerListKey = getRoomParticipantListKey(pinCode);
+        redisTemplate.delete(playerListKey);
     }
 
 }

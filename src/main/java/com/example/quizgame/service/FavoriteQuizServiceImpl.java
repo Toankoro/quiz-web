@@ -116,7 +116,7 @@ public class FavoriteQuizServiceImpl implements FavoriteQuizService {
                 return new FavoriteQuizResponse(
                                 favoriteQuiz.getId(),
                                 quiz.getId(),
-                                quiz.getTitle(),
+                                quiz.getTopic(),
                                 favoriteQuiz.getCreatedAt(),
                                 questionResponses);
         }

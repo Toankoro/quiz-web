@@ -1,6 +1,7 @@
 package com.example.quizgame.service;
 
 import com.example.quizgame.dto.room.ParticipantDTO;
+import com.example.quizgame.dto.room.RoomJoinResponse;
 import com.example.quizgame.dto.room.RoomResponse;
 import com.example.quizgame.entity.*;
 import com.example.quizgame.qr.QRCodeGenerator;
@@ -15,8 +16,7 @@ import org.springframework.stereotype.Service;
 
 import org.springframework.security.access.AccessDeniedException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -28,7 +28,7 @@ public class RoomService {
     private final QRCodeGenerator qrCodeGenerator;
     private final SimpMessagingTemplate messagingTemplate;
     private final UserService userService;
-    private final RoomParticipantRedisService redisService;
+    private final RoomParticipantRedisService roomParticipantRedisService;
     private final JwtUtil jwtUtil;
     @Autowired
     private UserRepository userRepository;
@@ -61,7 +61,7 @@ public class RoomService {
         return RoomResponse.from(saved);
     }
 
-    public RoomResponse joinRoom(String pin, User user) {
+    public RoomJoinResponse joinRoom(String pin, User user) {
         Room room = roomRepo.findByPinCodeAndStartedAtIsNull(pin)
                 .orElseThrow(() -> new RuntimeException("Phòng không tồn tại hoặc đã bắt đầu"));
 
@@ -78,9 +78,15 @@ public class RoomService {
         participantRepo.save(p);
         userService.increaseExp(user, 10); // Cộng 10 EXP mỗi lần tham gia
         userRepository.save(user);
-
-        messagingTemplate.convertAndSend("/topic/room/" + room.getId(), getParticipants(room));
-        return RoomResponse.from(room);
+        // create and store client session id in redis
+        String clientSessionId = roomParticipantRedisService.createAndStoreClientSession(pin, user.getUsername());
+        Set<String> participants = roomParticipantRedisService.getRoomParticipantList(pin);
+        List<ParticipantDTO> listParticipant =  getParticipants(room);
+        System.out.println(listParticipant);
+        System.out.println(participants);
+        // roomCode
+        messagingTemplate.convertAndSend("/topic/room/" + pin, listParticipant);
+        return RoomJoinResponse.from(room, clientSessionId);
     }
 
     public List<ParticipantDTO> startRoom(Long roomId, User user) {

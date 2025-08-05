@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.security.Principal;
+
 @RestController
 @RequestMapping("/api/test")
 public class TestController {
@@ -20,9 +22,11 @@ public class TestController {
     @PostMapping("/send-notification")
     public ResponseEntity<String> sendNotification(
             @RequestParam String username,
-            @RequestParam String message) {
-
+            @RequestParam String message,
+            Principal principal) {
         gameService.sendNotificationToUser(username, message);
+        System.out.println(principal.getName());
         return ResponseEntity.ok("Notification sent to " + username);
     }
+
 }

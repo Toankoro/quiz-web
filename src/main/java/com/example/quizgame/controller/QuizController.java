@@ -1,19 +1,22 @@
 package com.example.quizgame.controller;
 
+import com.example.quizgame.dto.chat.CustomUserDetails;
 import com.example.quizgame.dto.request.QuizRequest;
 import com.example.quizgame.dto.response.QuestionResponse;
 import com.example.quizgame.dto.response.QuizResponse;
+import com.example.quizgame.dto.user.UserDTO;
 import com.example.quizgame.entity.Question;
 import com.example.quizgame.entity.Quiz;
 import com.example.quizgame.reponsitory.QuizRepository;
 import com.example.quizgame.service.FavoriteQuizService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@CrossOrigin("*")
 @RestController
 @RequestMapping("/api/questions")
 public class QuizController {
@@ -26,12 +29,15 @@ public class QuizController {
     }
 // Tạo bộ câu hỏi
     @PostMapping
-    public ResponseEntity<QuizResponse> createQuiz(@RequestBody QuizRequest quizRequest) {
+    public ResponseEntity<QuizResponse> createQuiz(@RequestBody QuizRequest quizRequest,
+                                                   @AuthenticationPrincipal CustomUserDetails userDetails) {
         Quiz quiz = new Quiz();
-        quiz.setTitle(quizRequest.getTitle());
-        quiz.setVisibleTo(quizRequest.getVisibleTo());
+        quiz.setTopic(quizRequest.getTopic());
+        quiz.setVisibleTo(quizRequest.isVisibleTo());
         quiz.setImageUrl(quizRequest.getImageUrl());
         quiz.setName(quizRequest.getName());
+        quiz.setCreatedBy(userDetails.getUser());
+        quiz.setCreatedAt(LocalDateTime.now());
         List<Question> questions = quizRequest.getQuestions().stream().map(qr -> {
             Question q = new Question();
             q.setContent(qr.getContent());
@@ -62,7 +68,10 @@ public class QuizController {
                         q.getScore()))
                 .collect(Collectors.toList());
         quizResponse.setId(quizDB.getId());
-        quizResponse.setTitle(quizDB.getTitle());
+        quizResponse.setCreatedAt(quizDB.getCreatedAt());
+        quizResponse.setCreatedBy(UserDTO.fromUserToUserDTO(quizDB.getCreatedBy()));
+        quizResponse.setVisibleTo(quizDB.isVisibleTo());
+        quizResponse.setTopic(quizDB.getTopic());
         quizResponse.setQuestions(questionResponses);
         return ResponseEntity.ok(quizResponse);
     }
@@ -70,10 +79,9 @@ public class QuizController {
     @GetMapping
     public List<QuizResponse> getAllQuizzes(@RequestParam(required = false) Long userId) {
         List<Quiz> quizzes = quizRepository.findAll();
-
         return quizzes.stream()
                 .map(quiz -> {
-                    QuizResponse response = new QuizResponse(quiz.getId(), quiz.getTitle(),
+                    QuizResponse response = new QuizResponse(quiz.getId(), quiz.getTopic(),
                             quiz.getQuestions().stream()
                                     .map(q -> new QuestionResponse(
                                             q.getId(),
@@ -120,7 +128,7 @@ public class QuizController {
                 ))
                 .collect(Collectors.toList());
 
-        QuizResponse response = new QuizResponse(quiz.getId(), quiz.getTitle(), questionResponses);
+        QuizResponse response = new QuizResponse(quiz.getId(), quiz.getTopic(), questionResponses);
 
 //        if (userId != null) {
 //            boolean isFavorite = favoriteQuizService.isFavorite(userId, id);

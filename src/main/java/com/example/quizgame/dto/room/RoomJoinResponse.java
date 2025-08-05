@@ -10,22 +10,24 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RoomResponse {
+public class RoomJoinResponse {
     private Long roomId;
     private String pinCode;
     private String qrCodeUrl;
     private String quizTitle;
+    private String clientSessionId;
     private LocalDateTime createdAt;
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
     private boolean isStarted;
 
-    public static RoomResponse from(Room room) {
-        return RoomResponse.builder()
+    public static RoomJoinResponse from(Room room, String clientSessionId) {
+        return RoomJoinResponse.builder()
                 .roomId(room.getId())
                 .pinCode(room.getPinCode())
                 .qrCodeUrl(room.getQrCodeUrl())
                 .quizTitle(room.getQuiz().getTopic())
+                .clientSessionId(clientSessionId)
                 .createdAt(room.getCreatedAt())
                 .startedAt(room.getStartedAt())
                 .endedAt(room.getEndedAt())

@@ -12,9 +12,9 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class QuizRequest {
-    private String title;
+    private String topic;
     private String name;
-    private String visibleTo;
+    private boolean visibleTo;
     private String imageUrl;
     private List<QuestionRequest> questions;
 }

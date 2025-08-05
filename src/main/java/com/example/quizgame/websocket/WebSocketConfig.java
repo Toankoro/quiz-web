@@ -12,12 +12,6 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    private final JwtChannelInterceptor jwtChannelInterceptor;
-
-    public WebSocketConfig(JwtChannelInterceptor jwtChannelInterceptor) {
-        this.jwtChannelInterceptor = jwtChannelInterceptor;
-    }
-
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         config.enableSimpleBroker("/topic", "/queue");
@@ -32,9 +26,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .withSockJS();
     }
 
-    // Đăng ký interceptor cho inbound channel
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(jwtChannelInterceptor);
+        registration.interceptors(new AuthChannelInterceptorAdapter());
     }
+
 }

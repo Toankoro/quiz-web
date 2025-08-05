@@ -1,62 +1,26 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Test Notification</title>
-    <meta charset="UTF-8">
-</head>
-<body>
-    <h2>WebSocket Notification Test</h2>
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 
-    <button onclick="connect()">Kết nối WebSocket</button>
-    <br><br>
+<script>
+    const clientSessionId = "abc123"; // Sinh sau đăng nhập và lưu lại
 
-    <input type="text" id="username" placeholder="Tên người nhận" value="tungnguyen">
-    <input type="text" id="message" placeholder="Nội dung thông báo" value="Xin chào!">
-    <button onclick="sendNotification()">Gửi Thông Báo</button>
+    const socket = new SockJS("http://localhost:8080/ws");
+    const stompClient = Stomp.over(socket);
 
-    <div id="log" style="margin-top:20px; color: green;"></div>
+    stompClient.connect({ clientSessionId }, (frame) => {
+        console.log("Connected:", frame);
 
-    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
-    <script>
-        let stompClient = null;
-        const token = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0dW5nbmd1eWVuIiwicm9sZSI6IlJPTEVfVVNFUiIsImlhdCI6MTc1NDI5ODgzNiwiZXhwIjoxNzU0Mzg1MjM2fQ.qRiXC5Oh7wr7ivMQLJSj8EAgL9oRYOJpf4tRS3dZ_J8";
+        stompClient.subscribe("/user/queue/notify", (msg) => {
+            console.log("Message from server:", msg.body);
+        });
+    });
 
-        function log(msg) {
-            const div = document.getElementById("log");
-            div.innerHTML += `<p>${new Date().toLocaleTimeString()} - ${msg}</p>`;
-        }
-
-        function connect() {
-            const socket = new SockJS("http://localhost:8080/ws");
-            stompClient = Stomp.over(socket);
-            stompClient.debug = null;
-
-            stompClient.connect({ Authorization: token }, frame => {
-                log("✅ Đã kết nối: " + frame);
-                stompClient.subscribe("/user/queue/notifications", message => {
-                    log("📩 Tin nhắn đến: " + message.body);
-                    console.log(message);
-                }, { Authorization: token });
-            }, error => {
-                log("❌ Lỗi kết nối: " + error);
-            });
-        }
-
-        function sendNotification() {
-            const username = document.getElementById("username").value;
-            const message = document.getElementById("message").value;
-
-            fetch("http://localhost:8080/api/test/send-notification?username=" + username + "&message=" + message, {
-                method: "POST",
-                headers: {
-                    "Authorization": token
-                }
-            })
-            .then(res => res.text())
-            .then(txt => log("✅ " + txt))
-            .catch(err => log("❌ " + err));
-        }
-    </script>
-</body>
-</html>
+    // Gọi thử API gửi tin
+    function sendTestMessage() {
+        fetch("http://localhost:8080/api/ws/send?clientSessionId=abc123", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify("Hello from backend")
+        });
+    }
+</script>
