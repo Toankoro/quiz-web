@@ -81,11 +81,7 @@ public class RoomService {
         // create and store client session id in redis
         String clientSessionId = roomParticipantRedisService.createAndStoreClientSession(pin, user.getUsername());
         Set<String> participants = roomParticipantRedisService.getRoomParticipantList(pin);
-        List<ParticipantDTO> listParticipant =  getParticipants(room);
-        System.out.println(listParticipant);
-        System.out.println(participants);
-        // roomCode
-        messagingTemplate.convertAndSend("/topic/room/" + pin, listParticipant);
+        messagingTemplate.convertAndSend("/topic/room/" + pin, getParticipants(room));
         return RoomJoinResponse.from(room, clientSessionId);
     }
 
