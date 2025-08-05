@@ -21,5 +21,6 @@ public class VerificationCode {
     private String code;
     private LocalDateTime createdAt;
 
+    private int attempts = 0;
     // Getters and setters
 }
