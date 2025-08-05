@@ -1,8 +1,6 @@
 package com.example.quizgame.dto;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @RequiredArgsConstructor
 @Getter
@@ -13,6 +11,21 @@ public class ApiResponse <T> {
     private Object message;
     private int statusCode;
 
+    public ApiResponse(T data, String message) {
+        this.data = data;
+        this.message = message;
+    }
+
+    public ApiResponse(T data, String message, Meta meta) {
+        this.data = data;
+        this.message = message;
+        this.meta = meta;
+    }
+
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Getter
+    @Setter
     public static class Meta {
         private int page;
         private int pageSize;
