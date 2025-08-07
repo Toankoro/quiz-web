@@ -1,9 +1,7 @@
-package com.example.quizgame.dto.response;
+package com.example.quizgame.dto.question;
 
 import com.example.quizgame.entity.Question;
-import jakarta.persistence.Lob;
 import lombok.*;
-import org.apache.kafka.shaded.io.opentelemetry.proto.trace.v1.Span;
 
 import java.util.Map;
 
@@ -24,6 +22,8 @@ public class QuestionResponse {
     private String correctAnswer;
     private Integer limitedTime;
     private Integer score;
+
+
     public static QuestionResponse fromQuestionToQuestionResponse(Question question) {
        return QuestionResponse.builder()
                .id(question.getId())

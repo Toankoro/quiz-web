@@ -18,8 +18,6 @@ import java.util.Map;
 // using configuration with code with producer config diff
 @Configuration
 public class KafkaProducerConfig {
-//    @Value("${spring.kafka.bootstrap-servers}")
-//    private String bootstrapAddress;
 
     @Bean
     public ProducerFactory<String, MessageKafka> mailProducerFactory() {
@@ -33,20 +31,6 @@ public class KafkaProducerConfig {
     @Bean
     public KafkaTemplate<String, MessageKafka> mailKafkaTemplate() {
         return new KafkaTemplate<>(mailProducerFactory());
-    }
-
-    @Bean
-    public ProducerFactory<String, ChatMessageDTO> chatMessageDTOProducerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        return new DefaultKafkaProducerFactory<>(props);
-    }
-
-    @Bean
-    public KafkaTemplate<String, ChatMessageDTO> chatMessageDTOKafkaTemplate() {
-        return new KafkaTemplate<>(chatMessageDTOProducerFactory());
     }
 
     @Bean

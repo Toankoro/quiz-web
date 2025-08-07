@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Submit Answer API & WebSocket</title>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+  <h2>Submit Answer</h2>
+  <label>Token (JWT):<br>
+    <textarea id="token" rows="3" cols="80" placeholder="Paste your JWT token here"></textarea>
+  </label><br><br>
+
+  <label>Pin Code: <input type="text" id="pinCode" value="HDX4GG"></label><br>
+  <label>Client Session ID: <input type="text" id="sessionId" value="client-1"></label><br>
+  <label>Selected Answer: <input type="text" id="selectedAnswer" value="35"></label><br>
+  <label>Time Taken (ms): <input type="number" id="timeTaken" value="5"></label><br>
+  <button onclick="submitAnswer()">Submit Answer</button>
+
+  <h3>WebSocket Messages</h3>
+  <pre id="wsMessages">Connecting...</pre>
+
+  <script>
+    let stompClient = null;
+
+    function connectWebSocket(sessionId) {
+      const socket = new SockJS('http://localhost:8080/ws');
+      stompClient = Stomp.over(socket);
+      stompClient.connect({}, function (frame) {
+        document.getElementById('wsMessages').textContent = "Connected: " + frame;
+        stompClient.subscribe('/user/queue/answer-result', function (message) {
+          document.getElementById('wsMessages').textContent += "\n\nMessage received:\n" + message.body;
+        });
+      });
+    }
+
+    function submitAnswer() {
+      const pinCode = document.getElementById("pinCode").value;
+      const sessionId = document.getElementById("sessionId").value;
+      const selectedAnswer = document.getElementById("selectedAnswer").value;
+      const timeTaken = parseInt(document.getElementById("timeTaken").value);
+      const token = document.getElementById("token").value.trim();
+
+      if (!token) {
+        alert("Please enter a JWT token.");
+        return;
+      }
+
+      const answerBody = {
+        selectedAnswer: selectedAnswer,
+        timeTaken: timeTaken,
+        clientSessionId: sessionId
+      };
+
+      fetch(`http://localhost:8080/room/${pinCode}/submit-answer?clientSessionId=${sessionId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(answerBody)
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.text().then(text => { throw new Error(text) });
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log("API Response:", data);
+      })
+      .catch(err => {
+        console.error("API Error:", err.message);
+        alert("API Error: " + err.message);
+      });
+    }
+
+    // Connect to WebSocket on page load
+    window.onload = () => {
+      const sessionId = document.getElementById("sessionId").value;
+      connectWebSocket(sessionId);
+    };
+  </script>
+</body>
+</html>

@@ -26,4 +26,6 @@ public class RoomParticipant implements Serializable {
 
     @OneToMany(mappedBy = "roomParticipant", cascade = CascadeType.ALL)
     private List<PlayerAnswer> answers = new ArrayList<>();
+
+    private String clientSessionId;
 }
