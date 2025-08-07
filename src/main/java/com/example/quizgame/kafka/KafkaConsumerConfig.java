@@ -24,6 +24,7 @@ public class KafkaConsumerConfig {
         config.put(ConsumerConfig.GROUP_ID_CONFIG,"send-mail");
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        config.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
         return new DefaultKafkaConsumerFactory<>(config, new StringDeserializer(), new JsonDeserializer<>(MessageKafka.class));
     }
 
@@ -35,21 +36,4 @@ public class KafkaConsumerConfig {
         return factory;
     }
 
-    @Bean
-    public ConsumerFactory<String, ChatMessageDTO> chatMessageDTOConsumerFactory(){
-        Map<String, Object> config = new HashMap<>();
-        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,"localhost:9092");
-        config.put(ConsumerConfig.GROUP_ID_CONFIG,"chat-group");
-        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        return new DefaultKafkaConsumerFactory<>(config, new StringDeserializer(), new JsonDeserializer<>(ChatMessageDTO.class));
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, ChatMessageDTO> chatMessageDTOConcurrentKafkaListenerContainerFactoryoncurrentKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, ChatMessageDTO> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(chatMessageDTOConsumerFactory());
-        return factory;
-    }
 }

@@ -1,5 +1,6 @@
 package com.example.quizgame.service;
 
+import com.example.quizgame.dto.answer.AnswerResult;
 import com.example.quizgame.dto.answer.TemporaryAnswer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -25,41 +26,89 @@ public class RoomParticipantRedisService {
     private static final String SESSION_PREFIX = "room:%s:clientSession:%s";
     private static final long EXPIRATION_DAYS = 1;
     private static final String PLAYER_LIST_PREFIX = "room:%s:players";
-    // delete all temporary question
-    public void deleteAllTemporaryAnswers(String roomCode) {
-        String pattern = "tempAnswer:" + roomCode + ":*";
-        Set<String> keys = redisTemplate.keys(pattern);
-        if (keys != null && !keys.isEmpty()) {
-            redisTemplate.delete(keys);
-        }
+
+    // save answer room participant with question id
+    private String getRedisKey(String pinCode, Long questionId) {
+        return "answer:" + pinCode + ":" + questionId.toString();
     }
+
+    public void saveUnanswered(String pinCode, Long questionId, String clientSessionId, AnswerResult answerResult) {
+        String redisKey = getRedisKey(pinCode, questionId);
+        redisTemplate.opsForHash().putIfAbsent(redisKey, clientSessionId, answerResult);
+    }
+
+    public void saveAnswer(String pinCode, Long questionId, String clientSessionId, AnswerResult answerResult) {
+        String redisKey = getRedisKey(pinCode, questionId);
+        redisTemplate.opsForHash().put(redisKey, clientSessionId, answerResult);
+    }
+
+    public Map<String, AnswerResult> getSubmittedAnswers(String pinCode, Long questionId) {
+        String redisKey = getRedisKey(pinCode, questionId);
+        Map<Object, Object> rawMap = redisTemplate.opsForHash().entries(redisKey);
+
+        Map<String, AnswerResult> result = new HashMap<>();
+        for (Map.Entry<Object, Object> entry : rawMap.entrySet()) {
+            Object value = entry.getValue();
+            AnswerResult answerResult;
+
+            if (value instanceof LinkedHashMap) {
+                // Deserialize manually
+                answerResult = objectMapper.convertValue(value, AnswerResult.class);
+            } else if (value instanceof AnswerResult) {
+                answerResult = (AnswerResult) value;
+            } else {
+                throw new IllegalStateException("Unsupported value type in Redis: " + value.getClass());
+            }
+
+            result.put(entry.getKey().toString(), answerResult);
+        }
+
+        return result;
+    }
+
+    public void setExpire(String pinCode, Long questionId, long duration, TimeUnit unit) {
+        String redisKey = getRedisKey(pinCode, questionId);
+        redisTemplate.expire(redisKey, duration, unit);
+    }
+
+    public void deleteAnswers(String pinCode, Long questionId) {
+        String redisKey = getRedisKey(pinCode, questionId);
+        redisTemplate.delete(redisKey);
+    }
+
+    // history answer pinCode of participant
+    public void deleteAnswerHistory(String pinCode, String clientSessionId) {
+        String key = getHistoryRoomParticipantKey(pinCode, clientSessionId);
+        redisTemplate.delete(key);
+    }
+
+    public void saveAnswerHistory(String pinCode, String clientSessionId, AnswerResult answerResult) {
+        String key = getHistoryRoomParticipantKey(pinCode, clientSessionId);
+        redisTemplate.opsForList().rightPush(key, answerResult);
+    }
+
+    public List<AnswerResult> getAnswerHistory(String pinCode, String clientSessionId) {
+        String key = getHistoryRoomParticipantKey(pinCode, clientSessionId);
+        List<Object> rawList = redisTemplate.opsForList().range(key, 0, -1);
+        return rawList.stream()
+                .map(obj -> (AnswerResult) obj)
+                .collect(Collectors.toList());
+    }
+
+    public void setHistoryExpire(String pinCode, String clientSessionId, long timeout, TimeUnit unit) {
+        String key = getHistoryRoomParticipantKey(pinCode, clientSessionId);
+        redisTemplate.expire(key, timeout, unit);
+    }
+
+    private String getHistoryRoomParticipantKey(String pinCode, String clientSessionId) {
+        return "history:" + pinCode + ":" + clientSessionId;
+    }
+
     // get list players in room
     private String getRoomParticipantListKey(String pinCode) {
         return String.format(PLAYER_LIST_PREFIX, pinCode);
     }
-    private String getTempAnswersKey(String roomCode, String username) {
-        return "room:" + roomCode + ":answers:" + username;
-    }
-    // replay
-    // save temporaryAnswer
-    public void saveTemporaryAnswer(String roomCode, String username, TemporaryAnswer answer) {
-        String key = getTempAnswersKey(roomCode, username);
-        redisTemplate.opsForList().rightPush(key, answer);
-        redisTemplate.expire(key, Duration.ofHours(1));
-    }
 
-    // get temporary answer
-    public List<TemporaryAnswer> getTemporaryAnswers(String pinCode, String  username) {
-        String key = getTempAnswersKey(pinCode, username);
-        List<Object> list = redisTemplate.opsForList().range(key, 0, -1);
-        return list.stream()
-                .map(obj -> objectMapper.convertValue(obj, TemporaryAnswer.class))
-                .collect(Collectors.toList());
-    }
-
-    public void deleteTemporaryAnswers(String pinCode, String username) {
-        redisTemplate.delete(getTempAnswersKey(pinCode, username));
-    }
 
     private String getSessionKey(String roomCode, String clientSessionId) {
         return String.format(SESSION_PREFIX, roomCode, clientSessionId);

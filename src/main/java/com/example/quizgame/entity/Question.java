@@ -29,7 +29,7 @@ public class Question {
     
     @NotBlank(message = "Chưa chọn đáp án đúng")
     private String correctAnswer;
-    private Integer limitedTime;
+    private Integer limitedTime = 10;
     private Integer score;
 
     @ManyToOne

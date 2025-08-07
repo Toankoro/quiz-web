@@ -1,7 +1,7 @@
 package com.example.quizgame.service;
 
 import com.example.quizgame.dto.response.FavoriteQuizResponse;
-import com.example.quizgame.dto.response.QuestionResponse;
+import com.example.quizgame.dto.question.QuestionResponse;
 import com.example.quizgame.entity.FavoriteQuiz;
 import com.example.quizgame.entity.Quiz;
 import com.example.quizgame.entity.User;

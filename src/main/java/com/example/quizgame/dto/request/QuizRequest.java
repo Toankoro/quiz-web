@@ -1,5 +1,6 @@
 package com.example.quizgame.dto.request;
 
+import com.example.quizgame.dto.question.QuestionRequest;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
