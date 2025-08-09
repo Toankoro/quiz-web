@@ -1,7 +1,7 @@
-package com.example.quizgame.service;
+package com.example.quizgame.service.redis;
 
-import com.example.quizgame.dto.supportcard.SupportCardResult;
 import com.example.quizgame.dto.question.QuestionResponse;
+import com.example.quizgame.dto.supportcard.SupportCardType;
 import com.example.quizgame.entity.Question;
 import com.example.quizgame.reponsitory.QuestionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,9 +10,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -24,6 +22,8 @@ public class QuestionRedisService {
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
     private final QuestionRepository questionRepo;
+
+    private static final int MAX_RANDOM_TIMES = 3;
 
     // key get current question id
     private String getCurrentQuestionIdKey(String pinCode) {
@@ -82,27 +82,107 @@ public class QuestionRedisService {
         return value != null ? Long.valueOf(value.toString()) : null;
     }
 
-    // save support card for user
-    public void saveSupportCard(String roomCode, String username, SupportCardResult result) {
-        String key = "card:" + roomCode + ":" + username;
-        redisTemplate.opsForValue().set(key, result);
+    public void clearAllCardsInRoom(String pinCode) {
+        Set<String> keys = redisTemplate.keys("card:*:" + pinCode + ":*");
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+        }
     }
 
-    // get support card for user
-    public SupportCardResult getSupportCard(String roomCode, String username) {
-        String key = "card:" + roomCode + ":" + username;
-        Object value = redisTemplate.opsForValue().get(key);
-        return objectMapper.convertValue(value, SupportCardResult.class);
+    public void useCardForQuestion(String pinCode, String clientSessionId, Long questionId, SupportCardType cardType) {
+        String availableKey = "card:available:" + pinCode + ":" + clientSessionId;
+        String usedKey = "card:used:" + pinCode + ":" + clientSessionId;
+
+        Boolean hasCard = redisTemplate.opsForSet().isMember(availableKey, cardType.toString());
+        if (!hasCard) {
+            throw new IllegalStateException("Thẻ không khả dụng hoặc đã dùng.");
+        }
+        Boolean alreadyUsed = redisTemplate.opsForHash().hasKey(usedKey, questionId.toString());
+
+        if (alreadyUsed) {
+            throw new IllegalStateException("Đã dùng thẻ cho câu hỏi này.");
+        }
+        redisTemplate.opsForHash().put(usedKey, questionId.toString(), cardType.toString());
+        redisTemplate.opsForSet().remove(availableKey, cardType.toString());
     }
 
-    public void removeSupportCard(String pinCode, String username) {
-        String key = "card:" + pinCode + ":" + username;
-        redisTemplate.delete(key);
+    public SupportCardType getUsedCardForQuestion(String pinCode, String clientSessionId, Long questionId) {
+        String usedKey = "card:used:" + pinCode + ":" + clientSessionId;
+        Object cardObj = redisTemplate.opsForHash().get(usedKey, questionId.toString());
+        if (cardObj != null) {
+            try {
+                return SupportCardType.valueOf(cardObj.toString());
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return null;
     }
+
+    public boolean isCardUsedForQuestion(String pinCode, String clientSessionId, Long questionId) {
+        String usedKey = "card:used:" + pinCode + ":" + clientSessionId;
+        Boolean alreadyUsed = redisTemplate.opsForHash().hasKey(usedKey, questionId.toString());
+        return Boolean.TRUE.equals(alreadyUsed);
+    }
+
+    public Set<String> getAvailableCards(String pinCode, String clientSessionId) {
+        String key = "card:available:" + pinCode + ":" + clientSessionId;
+        Set<Object> rawSet = redisTemplate.opsForSet().members(key);
+        return rawSet.stream()
+                .map(Object::toString)
+                .collect(Collectors.toSet());
+    }
+
+    public void lockRoomAndCommitCards(String pinCode) {
+        String lockKey = "card:locked:" + pinCode;
+        redisTemplate.opsForValue().set(lockKey, "locked");
+
+        // Lấy danh sách người chơi trong phòng
+        Set<Object> clientSessionIds = redisTemplate.opsForHash().keys("room:" + pinCode + ":sessions");
+
+        for (Object sessionIdObj : clientSessionIds) {
+            String clientSessionId = sessionIdObj.toString();
+            String randomedKey = "card:randomed:" + pinCode + ":" + clientSessionId;
+            String availableKey = "card:available:" + pinCode + ":" + clientSessionId;
+
+            Set<Object> randomedCards = redisTemplate.opsForSet().members(randomedKey);
+            if (randomedCards != null) {
+                for (Object card : randomedCards) {
+                    redisTemplate.opsForSet().add(availableKey, card.toString());
+                }
+            }
+        }
+    }
+
+    public List<SupportCardType> randomTwoCards(String pin, String clientSessionId) {
+        String roomLockKey = "card:locked:" + pin;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(roomLockKey))) {
+            throw new IllegalStateException("Không thể random sau khi phòng đã bắt đầu");
+        }
+
+        String countKey = "card:random_count:" + pin + ":" + clientSessionId;
+        String randomedKey = "card:randomed:" + pin + ":" + clientSessionId;
+
+        Long currentCount = redisTemplate.opsForValue().increment(countKey);
+        if (currentCount != null && currentCount > MAX_RANDOM_TIMES) {
+            throw new IllegalStateException("Bạn đã random quá số lần cho phép");
+        }
+
+        redisTemplate.delete(randomedKey); // xóa thẻ cũ
+
+        List<SupportCardType> allCards = new ArrayList<>(EnumSet.allOf(SupportCardType.class));
+        Collections.shuffle(allCards);
+        List<SupportCardType> selected = allCards.subList(0, 2);
+
+        for (SupportCardType card : selected) {
+            redisTemplate.opsForSet().add(randomedKey, card.name());
+        }
+
+        return selected;
+    }
+    // get question by id from redis in memory
     public QuestionResponse getQuestionById(Long quizId, Long questionId) {
         String redisKey = "quiz:" + quizId + ":questions";
         Object cached = redisTemplate.opsForValue().get(redisKey);
-
         if (cached != null && cached instanceof List<?>) {
             return ((List<?>) cached).stream()
                     .filter(obj -> obj instanceof Map)
@@ -113,6 +193,8 @@ public class QuestionRedisService {
         }
         return null;
     }
+
+    // get list question by quiz id
     public List<QuestionResponse> getQuestionsByQuizId(Long quizId) {
         String redisKey = "quiz:" + quizId + ":questions";
 
@@ -138,7 +220,7 @@ public class QuestionRedisService {
         return questions;
     }
 
-    // startTime for question
+    // set, get startTime for question
     public void setQuestionStartTime(String roomCode, Long questionId, long startTime) {
         String key = "questionStartTime:" + roomCode;
         redisTemplate.opsForHash().put(key, questionId.toString(), String.valueOf(startTime));
@@ -150,7 +232,5 @@ public class QuestionRedisService {
         if (value == null) throw new RuntimeException("Start time not found for question");
         return Long.parseLong(value.toString());
     }
-
-
 
 }

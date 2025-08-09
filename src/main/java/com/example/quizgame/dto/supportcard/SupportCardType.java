@@ -2,7 +2,6 @@ package com.example.quizgame.dto.supportcard;
 
 public enum SupportCardType {
     DOUBLE_SCORE, // x2 điểm
-    HALF_SCORE, // chỉ nhận nửa điểm
-    SKIP_QUESTION,
+    RETRY_ANSWER, // phao cứu sinh, được được chọn lại đáp án sau khi đã trả lời sai
     HIDE_ANSWER
 }

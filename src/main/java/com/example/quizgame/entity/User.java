@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -33,6 +34,8 @@ public class User extends Auditable<String> {
 
     private boolean loginDisabled;
 
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
     @Column(nullable = false)
     private int level = 1;
     @Column(nullable = false)
@@ -64,4 +67,14 @@ public class User extends Auditable<String> {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GameRanking> gameRankings = new ArrayList<>();
+
+    @OneToMany(mappedBy = "createdBy", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Quiz> quiz = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FavoriteQuiz> favoriteQuiz = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SecureToken> secureTokens = new ArrayList<>();
+
 }

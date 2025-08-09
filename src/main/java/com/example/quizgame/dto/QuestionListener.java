@@ -2,7 +2,7 @@ package com.example.quizgame.dto;
 
 import com.example.quizgame.config.BeanUtil;
 import com.example.quizgame.entity.Question;
-import com.example.quizgame.service.QuestionRedisService;
+import com.example.quizgame.service.redis.QuestionRedisService;
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.PostRemove;
 import jakarta.persistence.PostUpdate;

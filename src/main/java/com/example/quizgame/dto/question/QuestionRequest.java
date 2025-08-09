@@ -11,11 +11,14 @@ import lombok.Setter;
 @NoArgsConstructor
 public class QuestionRequest {
     private String content;
+    private String description;
     private String answerA;
     private String answerB;
     private String answerC;
     private String answerD;
+    private String imageUrl;
     private String correctAnswer;
-    Integer score;
+    private Integer limitedTime;
+    private Integer score;
     public Long quizId;
 }

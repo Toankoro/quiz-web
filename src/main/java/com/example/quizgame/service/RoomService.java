@@ -9,9 +9,12 @@ import com.example.quizgame.entity.*;
 import com.example.quizgame.qr.QRCodeGenerator;
 import com.example.quizgame.reponsitory.*;
 import com.example.quizgame.security.JwtUtil;
+import com.example.quizgame.service.redis.QuestionRedisService;
+import com.example.quizgame.service.redis.RoomParticipantRedisService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -30,11 +33,9 @@ public class RoomService {
     private final SimpMessagingTemplate messagingTemplate;
     private final UserService userService;
     private final RoomParticipantRedisService roomParticipantRedisService;
-    private final JwtUtil jwtUtil;
     private final QuestionRedisService questionRedisService;
     private final UserRepository userRepository;
     private final GameRankingRepository gameRankingRepo;
-    private final QuestionRepository questionRepo;
 
     public RoomResponse createRoom(Long quizId, User host) {
         if (participantRepo.existsByUserAndRoomStartedAtIsNull(host)) {
@@ -79,7 +80,7 @@ public class RoomService {
         participantRepo.save(p);
         userService.increaseExp(user, 10); // Cộng 10 EXP mỗi lần tham gia
         userRepository.save(user);
-        // create and store client session id in redis
+
         String clientSessionId = roomParticipantRedisService.createAndStoreClientSession(pin, user.getUsername());
         messagingTemplate.convertAndSend("/topic/room/" + room.getId(), getParticipants(room));
         return RoomJoinResponse.from(room, clientSessionId);
@@ -123,6 +124,7 @@ public class RoomService {
             }
         }
         questionRedisService.setCurrentQuestionIndex(room.getPinCode(), 0);
+        questionRedisService.lockRoomAndCommitCards(room.getPinCode());
         gameRankingRepo.saveAll(rankings);
         // Gửi thông báo "phòng đã bắt đầu"
         boolean isQuestionLast = false;
@@ -130,7 +132,6 @@ public class RoomService {
             isQuestionLast = true;
         }
         messagingTemplate.convertAndSend("/topic/room/" + roomId, QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(0), isQuestionLast));
-
 
         // Trả về danh sách người chơi KHÔNG phải host
         return participants.stream()
@@ -164,8 +165,9 @@ public class RoomService {
         RoomParticipant p = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
                 .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này."));
 
+        Room room = roomRepo.findById(roomId).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với roomId"));
+        roomParticipantRedisService.removeClientSession(room.getPinCode(), p.getClientSessionId());
         participantRepo.delete(p);
-
         messagingTemplate.convertAndSend("/topic/room/" + roomId, getParticipants(p.getRoom()));
     }
 
@@ -177,7 +179,8 @@ public class RoomService {
 
         RoomParticipant target = participantRepo.findByRoomIdAndUserIdAndRoom_StartedAtIsNull(roomId, targetId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng trong phòng."));
-
+        Room room = roomRepo.findById(roomId).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với roomId"));
+        roomParticipantRedisService.removeClientSession(room.getPinCode(), target.getClientSessionId());
         participantRepo.delete(target);
         messagingTemplate.convertAndSend("/topic/room/" + roomId, getParticipants(hostP.getRoom()));
     }

@@ -1,15 +1,12 @@
-package com.example.quizgame.service;
+package com.example.quizgame.service.redis;
 
 import com.example.quizgame.dto.answer.AnswerResult;
-import com.example.quizgame.dto.answer.TemporaryAnswer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -19,13 +16,8 @@ import java.util.stream.Collectors;
 public class RoomParticipantRedisService {
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
-
-
-    private static final String SESSION_PREFIX = "room:%s:clientSession:%s";
     private static final long EXPIRATION_DAYS = 1;
-    private static final String PLAYER_LIST_PREFIX = "room:%s:players";
 
     // save answer room participant with question id
     private String getRedisKey(String pinCode, Long questionId) {
@@ -66,6 +58,12 @@ public class RoomParticipantRedisService {
         return result;
     }
 
+    public AnswerResult getAnswer(String pinCode, Long questionId, String clientSessionId) {
+        String redisKey = getRedisKey(pinCode, questionId);
+        Object result = redisTemplate.opsForHash().get(redisKey, clientSessionId);
+        return result != null ? (AnswerResult) result : null;
+    }
+
     public void setExpire(String pinCode, Long questionId, long duration, TimeUnit unit) {
         String redisKey = getRedisKey(pinCode, questionId);
         redisTemplate.expire(redisKey, duration, unit);
@@ -75,6 +73,12 @@ public class RoomParticipantRedisService {
         String redisKey = getRedisKey(pinCode, questionId);
         redisTemplate.delete(redisKey);
     }
+
+    public void deleteAnswerRoomParticipant(String pinCode, Long questionId, String clientSessionId) {
+        String redisKey = getRedisKey(pinCode, questionId);
+        redisTemplate.opsForHash().delete(redisKey, clientSessionId);
+    }
+
 
     // history answer pinCode of participant
     public void deleteAnswerHistory(String pinCode, String clientSessionId) {
@@ -104,63 +108,42 @@ public class RoomParticipantRedisService {
         return "history:" + pinCode + ":" + clientSessionId;
     }
 
-    // get list players in room
-    private String getRoomParticipantListKey(String pinCode) {
-        return String.format(PLAYER_LIST_PREFIX, pinCode);
+    // get, remove, get username, get all client session id  - list players in room
+    private String getSessionHashKey(String pinCode) {
+        return "room:" + pinCode + ":sessions";
     }
 
-
-    private String getSessionKey(String roomCode, String clientSessionId) {
-        return String.format(SESSION_PREFIX, roomCode, clientSessionId);
-    }
-    public String createAndStoreClientSession(String roomCode, String username) {
+    public String createAndStoreClientSession(String pinCode, String username) {
         String clientSessionId = UUID.randomUUID().toString();
-        String key = getSessionKey(roomCode, clientSessionId);
-        redisTemplate.opsForValue().set(key, username, EXPIRATION_DAYS, TimeUnit.DAYS);
-        String playerListKey = getRoomParticipantListKey(roomCode);
-        redisTemplate.opsForSet().add(playerListKey, username);
+        String hashKey = getSessionHashKey(pinCode);
+
+        redisTemplate.opsForHash().put(hashKey, clientSessionId, username);
+        redisTemplate.expire(hashKey, EXPIRATION_DAYS, TimeUnit.DAYS);
 
         return clientSessionId;
     }
 
-    public String getUsernameFromClientSession(String pinCode, String clientSessionId) {
-        String key = getSessionKey(pinCode, clientSessionId);
-        Object value = redisTemplate.opsForValue().get(key);
-        return value != null ? value.toString() : null;
+    public Map<Object, Object> getAllSessions(String roomCode) {
+        String hashKey = getSessionHashKey(roomCode);
+        return redisTemplate.opsForHash().entries(hashKey);
     }
 
-    public void removeClientSession(String roomCode, String clientSessionId) {
-        String key = getSessionKey(roomCode, clientSessionId);
-        redisTemplate.delete(key);
-    }
-
-
-    public void addRoomParticipant(String pinCode, String username) {
-        String roomParticipantListKey = getRoomParticipantListKey(pinCode);
-        redisTemplate.opsForSet().add(roomParticipantListKey, username);
-    }
-
-    // get room participant list set
-    public Set<String> getRoomParticipantList(String pinCode) {
-        String playerListKey = getRoomParticipantListKey(pinCode);
-        Set<Object> rawSet = redisTemplate.opsForSet().members(playerListKey);
-
-        if (rawSet == null) return Collections.emptySet();
-
-        return rawSet.stream()
-                .filter(Objects::nonNull)
-                .map(Object::toString)
+    public Set<String> getAllUsernames(String pinCode) {
+        String hashKey = getSessionHashKey(pinCode);
+        return redisTemplate.opsForHash().values(hashKey)
+                .stream().map(Object::toString)
                 .collect(Collectors.toSet());
     }
 
-    public void removeRoomParticipant(String pinCode, String username) {
-        String playerListKey = getRoomParticipantListKey(pinCode);
-        redisTemplate.opsForSet().remove(playerListKey, username);
+    public void removeClientSession(String pinCode, String clientSessionId) {
+        String hashKey = getSessionHashKey(pinCode);
+        redisTemplate.opsForHash().delete(hashKey, clientSessionId);
     }
 
-    public void clearRoomParticipantList(String pinCode) {
-        String playerListKey = getRoomParticipantListKey(pinCode);
-        redisTemplate.delete(playerListKey);
+    public void removeAllSessions(String pinCode) {
+        String hashKey = getSessionHashKey(pinCode);
+        redisTemplate.delete(hashKey);
     }
+
 
 }

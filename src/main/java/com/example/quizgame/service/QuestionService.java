@@ -1,24 +1,27 @@
 package com.example.quizgame.service;
 
 import com.example.quizgame.dto.answer.AnswerMessage;
-import com.example.quizgame.dto.answer.TemporaryAnswer;
 import com.example.quizgame.dto.question.QuestionResponseToParticipant;
 import com.example.quizgame.dto.answer.AnswerResult;
 import com.example.quizgame.dto.question.QuestionResponse;
 import com.example.quizgame.dto.question.ReconnectResponse;
-import com.example.quizgame.dto.supportcard.SupportCardResult;
 import com.example.quizgame.dto.supportcard.SupportCardType;
 import com.example.quizgame.entity.Question;
+import com.example.quizgame.entity.Room;
 import com.example.quizgame.entity.RoomParticipant;
+import com.example.quizgame.entity.User;
+import com.example.quizgame.reponsitory.GameRankingRepository;
 import com.example.quizgame.reponsitory.QuestionRepository;
 import com.example.quizgame.reponsitory.RoomParticipantRepository;
+import com.example.quizgame.reponsitory.RoomRepository;
+import com.example.quizgame.service.redis.QuestionRedisService;
+import com.example.quizgame.service.redis.RoomParticipantRedisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -32,6 +35,9 @@ public class QuestionService {
     private final RoomParticipantRepository roomParticipantRepository;
     private final RoomParticipantRedisService roomParticipantRedisService;
     private final QuestionRepository questionRepository;
+    private final RoomRepository roomRepository;
+    private final GameRankingService gameRankingService;
+
 
     public QuestionResponse getCurrentQuestion(String roomCode, Long quizId) {
         int currentIndex = questionRedisService.getCurrentQuestionIndex(roomCode);
@@ -44,43 +50,46 @@ public class QuestionService {
         }
     }
 
-    public AnswerResult handleAnswer(String pinCode, String username, AnswerMessage message) {
+    public AnswerResult handleAnswer(String pinCode, User user, AnswerMessage message) {
         Long questionId = questionRedisService.getCurrentQuestionId(pinCode);
         Long quizId = questionRedisService.getQuizIdByPinCode(pinCode);
         QuestionResponse question = questionRedisService.getQuestionById(quizId, questionId);
 
+        Room room = roomRepository.findByPinCode(pinCode).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với pinCode"));
         if (question == null) return null;
 
-        // Tìm người chơi theo username
-        RoomParticipant roomParticipant = roomParticipantRepository.findByRoom_PinCodeAndUser_Username(pinCode, username).orElse(null);
+        RoomParticipant roomParticipant = roomParticipantRepository
+                .findByRoom_PinCodeAndUser_Username(pinCode, user.getUsername())
+                .orElse(null);
+
         if (roomParticipant == null) return null;
+
         int baseTimeLimit = 10000;
         int baseScore = question.getScore() != null ? question.getScore() : 200;
         long timeTaken = message.getTimeTaken() != null ? message.getTimeTaken() : baseTimeLimit;
-        int timeLimit = baseTimeLimit;
 
-        SupportCardResult card = questionRedisService.getSupportCard(pinCode, username);
         String selectedAnswer = message.getSelectedAnswer();
         boolean isCorrect = selectedAnswer != null &&
                 question.getCorrectAnswer().equalsIgnoreCase(selectedAnswer);
-        int score = isCorrect ? calculateScore(timeTaken, timeLimit, baseScore) : 0;
 
-        if (card != null && card.getQuestionId().equals(questionId)) {
-            switch (card.getCardType()) {
+        int score = isCorrect ? calculateScore(timeTaken, baseTimeLimit, baseScore) : 0;
+
+        SupportCardType usedCard = questionRedisService.getUsedCardForQuestion(
+                pinCode,
+                message.getClientSessionId(),
+                questionId
+        );
+
+        if (usedCard != null) {
+            switch (usedCard) {
                 case DOUBLE_SCORE:
                     if (isCorrect) score *= 2;
                     break;
-                case HALF_SCORE:
-                    if (isCorrect) score = (int) (score * 0.5);
-                    break;
-                case SKIP_QUESTION:
-                    isCorrect = false;
-                    score = 0;
-                    break;
                 case HIDE_ANSWER:
                     break;
+                case RETRY_ANSWER:
+                    break;
             }
-            questionRedisService.removeSupportCard(pinCode, username);
         }
 
         // Lưu câu trả lời tạm thời
@@ -92,14 +101,23 @@ public class QuestionService {
                 isCorrect,
                 timeTaken
         );
-        roomParticipantRedisService.saveAnswer(pinCode,question.getId(), message.getClientSessionId(), temp);
+
+        roomParticipantRedisService.saveAnswer(pinCode, questionId, message.getClientSessionId(), temp);
 
         // Trả về kết quả
         AnswerResult result = new AnswerResult();
         result.setCorrect(isCorrect);
         result.setScore(score);
 
+        messagingTemplate.convertAndSendToUser(
+                message.getClientSessionId(),
+                "/queue/answer-result",
+                result
+        );
+
+        gameRankingService.addScoreAndCorrect(room, user, result.getScore());
         return result;
+
     }
 
 
@@ -174,14 +192,6 @@ public class QuestionService {
         messagingTemplate.convertAndSend("/topic/room/" + pinCode + "/game-over", "Đã hết câu hỏi.");
     }
 
-    // using support card for question
-    public void useSupportCard(String pinCode, String clientSessionId, SupportCardType cardType) {
-        Long currentQuestionId = questionRedisService.getCurrentQuestionId(pinCode);
-        if (currentQuestionId != null) {
-            SupportCardResult result = new SupportCardResult(currentQuestionId, cardType);
-            questionRedisService.saveSupportCard(pinCode, clientSessionId, result);
-        }
-    }
     public QuestionResponse hideTwoAnswers(QuestionResponse question) {
         if (question == null || question.getCorrectAnswer() == null || question.getCorrectAnswer().isBlank()) {
             return question;
@@ -219,19 +229,6 @@ public class QuestionService {
         }
 
         return clone;
-    }
-
-    // reset room state
-    public void resetRoomState(String pinCode, Long quizId, String clientSessionId) {
-
-//        questionRedisService.clearAllSupportCards(roomCode);
-        questionRedisService.setQuizIdByPinCode(pinCode, quizId);
-        questionRedisService.setCurrentQuestionIndex(pinCode, 0);
-        questionRedisService.setCurrentQuestionId(pinCode, null);
-        roomParticipantRedisService.deleteAnswerHistory(pinCode, clientSessionId);
-        questionRedisService.getQuestionsByQuizId(quizId).forEach(question -> roomParticipantRedisService.deleteAnswers(pinCode, question.getId()));
-//        roomParticipantRedisService.getPlayersInRoom(roomCode)
-//                .forEach(player -> playerRedisService.deleteTemporaryAnswers(roomCode, player.getClientSessionId()));
     }
 
     public ReconnectResponse handleReconnect(String pinCode, String clientSessionId) {

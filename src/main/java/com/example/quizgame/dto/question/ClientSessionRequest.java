@@ -9,6 +9,6 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class BaseClientRequest {
-    String clientSessionId = "";
+public class ClientSessionRequest {
+    private String clientSessionId;
 }
