@@ -20,4 +20,9 @@ public class GlobalException{
         res.setMessage(illegalArgumentException.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(res);
     }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<?> handleConflict(ConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+    }
 }

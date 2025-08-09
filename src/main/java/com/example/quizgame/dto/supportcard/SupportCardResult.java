@@ -16,8 +16,9 @@ public class SupportCardResult {
     private String message;
     private Object effectData;
 
-    public SupportCardResult (Long questionId, SupportCardType cardType) {
+    public SupportCardResult (Long questionId, SupportCardType cardType, String clientSessionId) {
         this.questionId = questionId;
         this.cardType = cardType;
+        this.clientSessionId = clientSessionId;
     }
 }

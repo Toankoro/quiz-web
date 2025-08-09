@@ -9,9 +9,12 @@ import com.example.quizgame.entity.*;
 import com.example.quizgame.qr.QRCodeGenerator;
 import com.example.quizgame.reponsitory.*;
 import com.example.quizgame.security.JwtUtil;
+import com.example.quizgame.service.redis.QuestionRedisService;
+import com.example.quizgame.service.redis.RoomParticipantRedisService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +38,7 @@ public class RoomService {
     private final UserRepository userRepository;
     private final GameRankingRepository gameRankingRepo;
     private final QuestionRepository questionRepo;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     public RoomResponse createRoom(Long quizId, User host) {
         if (participantRepo.existsByUserAndRoomStartedAtIsNull(host)) {
@@ -79,7 +83,7 @@ public class RoomService {
         participantRepo.save(p);
         userService.increaseExp(user, 10); // Cộng 10 EXP mỗi lần tham gia
         userRepository.save(user);
-        // create and store client session id in redis
+
         String clientSessionId = roomParticipantRedisService.createAndStoreClientSession(pin, user.getUsername());
         messagingTemplate.convertAndSend("/topic/room/" + room.getId(), getParticipants(room));
         return RoomJoinResponse.from(room, clientSessionId);
@@ -123,6 +127,7 @@ public class RoomService {
             }
         }
         questionRedisService.setCurrentQuestionIndex(room.getPinCode(), 0);
+        questionRedisService.lockRoomAndCommitCards(room.getPinCode());
         gameRankingRepo.saveAll(rankings);
         // Gửi thông báo "phòng đã bắt đầu"
         boolean isQuestionLast = false;
@@ -130,7 +135,6 @@ public class RoomService {
             isQuestionLast = true;
         }
         messagingTemplate.convertAndSend("/topic/room/" + roomId, QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(0), isQuestionLast));
-
 
         // Trả về danh sách người chơi KHÔNG phải host
         return participants.stream()
