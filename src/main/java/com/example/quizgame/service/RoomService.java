@@ -1,5 +1,7 @@
 package com.example.quizgame.service;
 
+import com.example.quizgame.dto.question.QuestionResponse;
+import com.example.quizgame.dto.question.QuestionResponseToParticipant;
 import com.example.quizgame.dto.room.ParticipantDTO;
 import com.example.quizgame.dto.room.RoomJoinResponse;
 import com.example.quizgame.dto.room.RoomResponse;
@@ -10,7 +12,6 @@ import com.example.quizgame.security.JwtUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -30,9 +31,10 @@ public class RoomService {
     private final UserService userService;
     private final RoomParticipantRedisService roomParticipantRedisService;
     private final JwtUtil jwtUtil;
-    @Autowired
-    private UserRepository userRepository;
+    private final QuestionRedisService questionRedisService;
+    private final UserRepository userRepository;
     private final GameRankingRepository gameRankingRepo;
+    private final QuestionRepository questionRepo;
 
     public RoomResponse createRoom(Long quizId, User host) {
         if (participantRepo.existsByUserAndRoomStartedAtIsNull(host)) {
@@ -101,12 +103,17 @@ public class RoomService {
         room.setStartedAt(LocalDateTime.now());
         roomRepo.save(room);
 
+        Long quizId = room.getQuiz().getId();
+        List<QuestionResponse> questions = questionRedisService.getQuestionsByQuizId(quizId);
+        questionRedisService.setQuizIdByPinCode(room.getPinCode(), quizId);
+        questionRedisService.setCurrentQuestionId(room.getPinCode(), questions.get(0).getId());
+
         // Tạo dữ liệu GameRanking cho từng người chơi trong phòng
         List<RoomParticipant> participants = room.getParticipants();
         List<GameRanking> rankings = new ArrayList<>();
 
         for (RoomParticipant p : participants) {
-            if (!p.isHost()) { // Chỉ tạo cho người chơi không phải host
+            if (!p.isHost()) {
                 GameRanking r = new GameRanking();
                 r.setRoom(room);
                 r.setUser(p.getUser());
@@ -115,16 +122,32 @@ public class RoomService {
                 rankings.add(r);
             }
         }
-
+        questionRedisService.setCurrentQuestionIndex(room.getPinCode(), 0);
         gameRankingRepo.saveAll(rankings);
         // Gửi thông báo "phòng đã bắt đầu"
-        messagingTemplate.convertAndSend("/topic/room/" + roomId, "started");
+        boolean isQuestionLast = false;
+        if (questions.size() <= 1){
+            isQuestionLast = true;
+        }
+        messagingTemplate.convertAndSend("/topic/room/" + roomId, QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(0), isQuestionLast));
+
 
         // Trả về danh sách người chơi KHÔNG phải host
         return participants.stream()
                 .filter(p -> !p.isHost())
                 .map(p -> new ParticipantDTO(p.getUser().getId(), p.getUser().getFirstname(), p.getUser().getAvatar(),false))
                 .toList();
+    }
+
+    public QuestionResponse getCurrentQuestion(String roomCode, Long quizId) {
+        int currentIndex = questionRedisService.getCurrentQuestionIndex(roomCode);
+        List<QuestionResponse> questions = questionRedisService.getQuestionsByQuizId(quizId);
+
+        if (currentIndex >= 0 && currentIndex < questions.size()) {
+            return questions.get(currentIndex);
+        } else {
+            throw new IllegalStateException("Không đúng chỉ số của câu hỏi !");
+        }
     }
 
     public boolean isHostRoom (Long roomId, User user) {

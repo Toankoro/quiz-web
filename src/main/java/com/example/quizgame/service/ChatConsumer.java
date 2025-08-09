@@ -34,7 +34,7 @@ public class ChatConsumer {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-    @KafkaListener(topics = "chat-topic", groupId = "chat-group")
+    @KafkaListener(topics = "chat-topic", groupId = "chat-group", containerFactory = "chatKafkaListenerContainerFactory")
     public void consume(ChatMessageDTO dto) {
         ChatMessage message = new ChatMessage();
         message.setGroupName(dto.getGroupName());

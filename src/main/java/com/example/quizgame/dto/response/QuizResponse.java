@@ -1,8 +1,8 @@
 package com.example.quizgame.dto.response;
 
+import com.example.quizgame.dto.question.QuestionResponse;
 import com.example.quizgame.dto.user.UserDTO;
 import com.example.quizgame.entity.Quiz;
-import com.example.quizgame.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

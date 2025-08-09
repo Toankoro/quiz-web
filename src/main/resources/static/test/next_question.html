@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Next Question</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+    <h2>Test Send Next Question</h2>
+
+    <label>Pin Code:</label>
+    <input type="text" id="pinCode" placeholder="Enter Pin Code" /><br>
+
+    <label>Client Session ID:</label>
+    <input type="text" id="clientSessionId" placeholder="Enter Session ID" /><br>
+
+    <button onclick="connect()">Connect WebSocket</button>
+    <button onclick="sendNextQuestion()">Send Next Question</button>
+
+    <h3>Server Response:</h3>
+    <pre id="responseBox"></pre>
+
+    <script>
+        let stompClient = null;
+        let sessionId = null;
+
+        function connect() {
+            const socket = new SockJS('http://localhost:8080/ws'); // Adjust if your websocket endpoint is different
+            stompClient = Stomp.over(socket);
+            stompClient.connect({}, function(frame) {
+                console.log('Connected: ' + frame);
+
+                sessionId = document.getElementById('clientSessionId').value;
+
+                stompClient.subscribe('/user/queue/next-question', function(message) {
+                    document.getElementById('responseBox').textContent = "WebSocket Response:\n" + JSON.stringify(JSON.parse(message.body), null, 2);
+                });
+            });
+        }
+
+        function sendNextQuestion() {
+            const pinCode = document.getElementById('pinCode').value;
+            const clientSessionId = document.getElementById('clientSessionId').value;
+
+            axios.post(`http://localhost:8080/${pinCode}/next-question`, {
+                clientSessionId: clientSessionId,
+                pinCode: pinCode
+            }, {
+                headers: {
+                    "Content-Type": "application/json",
+                    // Include auth token if needed:
+                    Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJOZ3V54buFbiBWxINuIFTDuW5nIiwicm9sZSI6IlJPTEVfVVNFUiIsImlhdCI6MTc1NDU4MjY3MSwiZXhwIjoxNzU0NjY5MDcxfQ.dl_ERsVrjwiWcmqO-csp7tXnWxf0DCnL6BWu78Z4pCo'
+                }
+            })
+            .then(response => {
+                document.getElementById('responseBox').textContent = "HTTP Response:\n" + JSON.stringify(response.data, null, 2);
+            })
+            .catch(error => {
+                document.getElementById('responseBox').textContent = "Error:\n" + error;
+            });
+        }
+    </script>
+</body>
+</html>

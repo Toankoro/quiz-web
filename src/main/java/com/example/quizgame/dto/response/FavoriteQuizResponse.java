@@ -1,5 +1,6 @@
 package com.example.quizgame.dto.response;
 
+import com.example.quizgame.dto.question.QuestionResponse;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Getter;
 import lombok.Setter;

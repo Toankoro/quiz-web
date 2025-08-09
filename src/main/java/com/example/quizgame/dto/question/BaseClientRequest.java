@@ -1,4 +1,4 @@
-package com.example.quizgame.dto;
+package com.example.quizgame.dto.question;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,8 +9,6 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class ReconnectMessage {
-    private String playerName;
-    private String roomCode;
-    private String clientSessionId;
+public class BaseClientRequest {
+    String clientSessionId = "";
 }

@@ -2,7 +2,7 @@ package com.example.quizgame.service;
 
 import com.example.quizgame.dto.ApiResponse;
 import com.example.quizgame.dto.request.QuizRequest;
-import com.example.quizgame.dto.response.QuestionResponse;
+import com.example.quizgame.dto.question.QuestionResponse;
 import com.example.quizgame.dto.response.QuizResponse;
 import com.example.quizgame.entity.Question;
 import com.example.quizgame.entity.Quiz;

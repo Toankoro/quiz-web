@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WebSocket Subscribe - Room Started</title>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+  <h2>Subscribe to Room Start Topic</h2>
+
+  <label>Room ID: <input type="number" id="roomId" value="1"></label><br><br>
+  <button onclick="connectWebSocket()">Subscribe</button>
+
+  <h3>WebSocket Messages:</h3>
+  <pre id="messageBox"></pre>
+
+  <script>
+    let stompClient = null;
+
+    function connectWebSocket() {
+      const roomId = document.getElementById("roomId").value;
+
+      const socket = new SockJS("http://localhost:8080/ws");
+      stompClient = Stomp.over(socket);
+
+      stompClient.connect({}, function () {
+        const topic = `/topic/room/${roomId}`;
+        stompClient.subscribe(topic, function (message) {
+          document.getElementById("messageBox").textContent =
+            `Received from topic ${topic}:\n\n` + message.body;
+        });
+
+        document.getElementById("messageBox").textContent = `Subscribed to ${topic}...`;
+      }, function (error) {
+        document.getElementById("messageBox").textContent = "WebSocket connection error: " + error;
+      });
+    }
+  </script>
+</body>
+</html>

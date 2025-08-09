@@ -1,11 +1,15 @@
 package com.example.quizgame.dto.chat;
 
 import com.example.quizgame.entity.ChatMessage;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ChatMessageDTO {
     private String content;
     private String groupName;
