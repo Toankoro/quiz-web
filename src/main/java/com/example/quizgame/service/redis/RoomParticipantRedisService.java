@@ -109,13 +109,13 @@ public class RoomParticipantRedisService {
     }
 
     // get, remove, get username, get all client session id  - list players in room
-    private String getSessionHashKey(String roomCode) {
-        return "room:" + roomCode + ":sessions";
+    private String getSessionHashKey(String pinCode) {
+        return "room:" + pinCode + ":sessions";
     }
 
-    public String createAndStoreClientSession(String roomCode, String username) {
+    public String createAndStoreClientSession(String pinCode, String username) {
         String clientSessionId = UUID.randomUUID().toString();
-        String hashKey = getSessionHashKey(roomCode);
+        String hashKey = getSessionHashKey(pinCode);
 
         redisTemplate.opsForHash().put(hashKey, clientSessionId, username);
         redisTemplate.expire(hashKey, EXPIRATION_DAYS, TimeUnit.DAYS);
@@ -128,20 +128,20 @@ public class RoomParticipantRedisService {
         return redisTemplate.opsForHash().entries(hashKey);
     }
 
-    public Set<String> getAllUsernames(String roomCode) {
-        String hashKey = getSessionHashKey(roomCode);
+    public Set<String> getAllUsernames(String pinCode) {
+        String hashKey = getSessionHashKey(pinCode);
         return redisTemplate.opsForHash().values(hashKey)
                 .stream().map(Object::toString)
                 .collect(Collectors.toSet());
     }
 
-    public void removeClientSession(String roomCode, String clientSessionId) {
-        String hashKey = getSessionHashKey(roomCode);
+    public void removeClientSession(String pinCode, String clientSessionId) {
+        String hashKey = getSessionHashKey(pinCode);
         redisTemplate.opsForHash().delete(hashKey, clientSessionId);
     }
 
-    public void removeAllSessions(String roomCode) {
-        String hashKey = getSessionHashKey(roomCode);
+    public void removeAllSessions(String pinCode) {
+        String hashKey = getSessionHashKey(pinCode);
         redisTemplate.delete(hashKey);
     }
 

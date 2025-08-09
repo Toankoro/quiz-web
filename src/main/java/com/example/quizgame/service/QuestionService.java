@@ -7,9 +7,13 @@ import com.example.quizgame.dto.question.QuestionResponse;
 import com.example.quizgame.dto.question.ReconnectResponse;
 import com.example.quizgame.dto.supportcard.SupportCardType;
 import com.example.quizgame.entity.Question;
+import com.example.quizgame.entity.Room;
 import com.example.quizgame.entity.RoomParticipant;
+import com.example.quizgame.entity.User;
+import com.example.quizgame.reponsitory.GameRankingRepository;
 import com.example.quizgame.reponsitory.QuestionRepository;
 import com.example.quizgame.reponsitory.RoomParticipantRepository;
+import com.example.quizgame.reponsitory.RoomRepository;
 import com.example.quizgame.service.redis.QuestionRedisService;
 import com.example.quizgame.service.redis.RoomParticipantRedisService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +35,9 @@ public class QuestionService {
     private final RoomParticipantRepository roomParticipantRepository;
     private final RoomParticipantRedisService roomParticipantRedisService;
     private final QuestionRepository questionRepository;
+    private final RoomRepository roomRepository;
+    private final GameRankingService gameRankingService;
+
 
     public QuestionResponse getCurrentQuestion(String roomCode, Long quizId) {
         int currentIndex = questionRedisService.getCurrentQuestionIndex(roomCode);
@@ -43,15 +50,16 @@ public class QuestionService {
         }
     }
 
-    public AnswerResult handleAnswer(String pinCode, String username, AnswerMessage message) {
+    public AnswerResult handleAnswer(String pinCode, User user, AnswerMessage message) {
         Long questionId = questionRedisService.getCurrentQuestionId(pinCode);
         Long quizId = questionRedisService.getQuizIdByPinCode(pinCode);
         QuestionResponse question = questionRedisService.getQuestionById(quizId, questionId);
 
+        Room room = roomRepository.findByPinCode(pinCode).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với pinCode"));
         if (question == null) return null;
 
         RoomParticipant roomParticipant = roomParticipantRepository
-                .findByRoom_PinCodeAndUser_Username(pinCode, username)
+                .findByRoom_PinCodeAndUser_Username(pinCode, user.getUsername())
                 .orElse(null);
 
         if (roomParticipant == null) return null;
@@ -100,7 +108,16 @@ public class QuestionService {
         AnswerResult result = new AnswerResult();
         result.setCorrect(isCorrect);
         result.setScore(score);
+
+        messagingTemplate.convertAndSendToUser(
+                message.getClientSessionId(),
+                "/queue/answer-result",
+                result
+        );
+
+        gameRankingService.addScoreAndCorrect(room, user, result.getScore());
         return result;
+
     }
 
 

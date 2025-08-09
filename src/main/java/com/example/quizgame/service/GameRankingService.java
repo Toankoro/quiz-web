@@ -21,7 +21,6 @@ public class GameRankingService {
 
     private final GameRankingRepository rankingRepo;
     private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final UserRepository userRepo;
 
     // Cộng điểm và cập nhật xếp hạng
     @Transactional
@@ -37,6 +36,7 @@ public class GameRankingService {
         if(scoreToAdd>0){
             ranking.setCorrectCount(ranking.getCorrectCount() + 1);
         }
+
         rankingRepo.save(ranking);
         updateRanksAndBroadcast(room);
     }

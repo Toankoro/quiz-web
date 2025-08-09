@@ -5,13 +5,10 @@ import com.example.quizgame.dto.question.ClientSessionRequest;
 import com.example.quizgame.dto.supportcard.SupportCardMessage;
 import com.example.quizgame.dto.supportcard.SupportCardType;
 import com.example.quizgame.entity.Room;
-import com.example.quizgame.reponsitory.QuestionRepository;
 import com.example.quizgame.reponsitory.RoomRepository;
-import com.example.quizgame.service.QuestionService;
 import com.example.quizgame.service.RoomService;
 import com.example.quizgame.service.redis.QuestionRedisService;
 import com.example.quizgame.service.SupportCardService;
-import com.example.quizgame.service.redis.RoomParticipantRedisService;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -36,6 +33,7 @@ public class SupportCardController {
     private final RoomRepository roomRepository;
     private final RoomService roomService;
 
+    // room participant use support card
     @PostMapping("/{pinCode}/support-card")
     public ResponseEntity<?> useSupportCard(
             @PathVariable String pinCode,

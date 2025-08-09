@@ -48,7 +48,8 @@ public class RoomController {
     @DeleteMapping("/kick/{roomId}/{userId}")
     public ResponseEntity<?> kickUser(@PathVariable Long roomId,
                                       @PathVariable Long userId,
-                                      @AuthenticationPrincipal CustomUserDetails userDetails) {
+                                      @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
         roomService.kickUser(userDetails.getUser(), roomId, userId);
         return ResponseEntity.ok("Đã xóa người chơi");
     }

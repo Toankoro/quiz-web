@@ -33,12 +33,9 @@ public class RoomService {
     private final SimpMessagingTemplate messagingTemplate;
     private final UserService userService;
     private final RoomParticipantRedisService roomParticipantRedisService;
-    private final JwtUtil jwtUtil;
     private final QuestionRedisService questionRedisService;
     private final UserRepository userRepository;
     private final GameRankingRepository gameRankingRepo;
-    private final QuestionRepository questionRepo;
-    private final RedisTemplate<String, Object> redisTemplate;
 
     public RoomResponse createRoom(Long quizId, User host) {
         if (participantRepo.existsByUserAndRoomStartedAtIsNull(host)) {
@@ -168,8 +165,9 @@ public class RoomService {
         RoomParticipant p = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
                 .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này."));
 
+        Room room = roomRepo.findById(roomId).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với roomId"));
+        roomParticipantRedisService.removeClientSession(room.getPinCode(), p.getClientSessionId());
         participantRepo.delete(p);
-
         messagingTemplate.convertAndSend("/topic/room/" + roomId, getParticipants(p.getRoom()));
     }
 
@@ -181,7 +179,8 @@ public class RoomService {
 
         RoomParticipant target = participantRepo.findByRoomIdAndUserIdAndRoom_StartedAtIsNull(roomId, targetId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng trong phòng."));
-
+        Room room = roomRepo.findById(roomId).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với roomId"));
+        roomParticipantRedisService.removeClientSession(room.getPinCode(), target.getClientSessionId());
         participantRepo.delete(target);
         messagingTemplate.convertAndSend("/topic/room/" + roomId, getParticipants(hostP.getRoom()));
     }

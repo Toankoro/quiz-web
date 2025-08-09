@@ -48,16 +48,12 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class UserService implements UserDetailsService {
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired private VerificationCodeRepository codeRepo;
-    @Autowired private PasswordEncoder encoder;
-    @Autowired
-    private JavaMailSender mailSender;
-    @Autowired
-    private SecureTokenService secureTokenService;
-    @Autowired
-    private EmailService emailService;
+    private final UserRepository userRepository;
+    private final VerificationCodeRepository codeRepo;
+    private final PasswordEncoder encoder;
+    private final JavaMailSender mailSender;
+    private final SecureTokenService secureTokenService;
+    private final EmailService emailService;
 
     @Value("${site.base.url.https}")
     private String baseUrl;

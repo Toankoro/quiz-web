@@ -5,7 +5,9 @@ import com.example.quizgame.dto.chat.CustomUserDetails;
 import com.example.quizgame.dto.question.*;
 import com.example.quizgame.dto.answer.AnswerResult;
 import com.example.quizgame.entity.Room;
+import com.example.quizgame.reponsitory.GameRankingRepository;
 import com.example.quizgame.reponsitory.RoomRepository;
+import com.example.quizgame.service.GameRankingService;
 import com.example.quizgame.service.redis.QuestionRedisService;
 import com.example.quizgame.service.QuestionService;
 import com.example.quizgame.service.redis.RoomParticipantRedisService;
@@ -28,27 +30,18 @@ public class QuestionController {
     private final SimpMessagingTemplate messagingTemplate;
     private final RoomService roomService;
     private final RoomRepository roomRepository;
-    private final QuestionRedisService questionRedisService;
-    private final RoomParticipantRedisService roomParticipantRedisService;
 
     @PostMapping("/room/{pinCode}/submit-answer")
     public ResponseEntity<AnswerResult> submitAnswer(
             @PathVariable String pinCode,
-            @RequestParam String clientSessionId,
             @RequestBody AnswerMessage message,
-            Principal principal) {
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         if (message == null) {
             System.out.println("Câu trả lời null!");
             return ResponseEntity.badRequest().build();
         }
-        String username = principal.getName();
-        AnswerResult result = questionService.handleAnswer(pinCode, username, message);
-        messagingTemplate.convertAndSendToUser(
-                clientSessionId,
-                "/queue/answer-result",
-                result
-        );
+        AnswerResult result = questionService.handleAnswer(pinCode, userDetails.getUser(), message);
         return ResponseEntity.ok(result);
     }
 
