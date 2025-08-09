@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -26,4 +28,15 @@ public interface QuizRepository extends JpaRepository<Quiz, Long> {
     Page<Quiz> searchByTopicAndName(@Param("topic") String topic,
                                     @Param("name") String name,
                                     Pageable pageable);
+    @Query("SELECT DATE(q.createdAt), COUNT(q) " +
+            "FROM Quiz q " +
+            "WHERE q.createdAt BETWEEN :startDate AND :endDate " +
+            "GROUP BY DATE(q.createdAt) " +
+            "ORDER BY DATE(q.createdAt)")
+    List<Object[]> countQuizzesByDay(@Param("startDate") LocalDateTime startDate,
+                                     @Param("endDate") LocalDateTime endDate);
+    @Query("SELECT q.createdBy.username, COUNT(q) as totalQuiz " +
+            "FROM Quiz q GROUP BY q.createdBy.username " +
+            "ORDER BY totalQuiz DESC LIMIT 5")
+    List<Object[]> findTop5UsersByQuizCount();
 }

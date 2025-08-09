@@ -30,8 +30,17 @@ public class AdminController {
 
     // Danh sách user (chỉ USER), phân trang
     @GetMapping("/users")
-    public Page<UserDTO> getUsers(@RequestParam int page, @RequestParam int size) {
-        Page<User> users = userRepo.findByRole(User.Role.USER, PageRequest.of(page, size));
+    public Page<UserDTO> getUsers(
+            @RequestParam int page,
+            @RequestParam int size,
+            @RequestParam(required = false) String firstname) {
+
+        Page<User> users = userRepo.searchByRoleAndFirstnameLike(
+                User.Role.USER,
+                firstname != null && !firstname.trim().isEmpty() ? firstname.trim() : null,
+                PageRequest.of(page, size)
+        );
+
         return users.map(user -> new UserDTO(
                 user.getId(),
                 user.getUsername(),
