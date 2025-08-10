@@ -7,6 +7,7 @@ import com.example.quizgame.entity.Quiz;
 import com.example.quizgame.reponsitory.QuestionRepository;
 import com.example.quizgame.reponsitory.QuizRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -56,17 +57,24 @@ public class QuestionQuizService {
         question.setAnswerD(request.getAnswerD());
         question.setImageUrl(request.getImageUrl());
         question.setCorrectAnswer(request.getCorrectAnswer());
-        question.setLimitedTime(request.getLimitedTime());
-        question.setScore(request.getScore());
+        question.setLimitedTime(request.getLimitedTime() != null
+                ? request.getLimitedTime()
+                : question.getLimitedTime());
+
+        question.setScore(request.getScore() != null
+                ? request.getScore()
+                : question.getScore());
+
 
         Question updated = questionRepository.save(question);
         return QuestionResponse.fromQuestionToQuestionResponse(updated);
     }
 
-    public void deleteQuestion(Long id) {
+    public ResponseEntity<String> deleteQuestion(Long id) {
         if (!questionRepository.existsById(id)) {
             throw new RuntimeException("Không tìm thấy câu hỏi để xóa");
         }
         questionRepository.deleteById(id);
+        return ResponseEntity.ok("Xóa câu hỏi thành công");
     }
 }
