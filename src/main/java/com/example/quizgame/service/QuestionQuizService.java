@@ -9,6 +9,7 @@ import com.example.quizgame.reponsitory.QuizRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -18,7 +19,7 @@ public class QuestionQuizService {
     private final QuizRepository quizRepository;
 
 
-    public QuestionResponse createQuestion(QuestionRequest request) {
+    public QuestionResponse createQuestion(QuestionRequest request, MultipartFile questionImage) {
         Quiz quiz = quizRepository.findById(request.getQuizId())
                 .orElseThrow(() -> new RuntimeException("Quiz không tồn tại"));
 
@@ -29,17 +30,21 @@ public class QuestionQuizService {
         question.setAnswerB(request.getAnswerB());
         question.setAnswerC(request.getAnswerC());
         question.setAnswerD(request.getAnswerD());
-        question.setImageUrl(request.getImageUrl());
         question.setCorrectAnswer(request.getCorrectAnswer());
         question.setLimitedTime(request.getLimitedTime() != null ? request.getLimitedTime() : 10);
         question.setScore(request.getScore() != null ? request.getScore() : 200);
         question.setQuiz(quiz);
 
+        if (questionImage != null && !questionImage.isEmpty()) {
+            question.setImageUrl(QuizService.convertImageToBase64(questionImage));
+        }
+
         Question saved = questionRepository.save(question);
         return QuestionResponse.fromQuestionToQuestionResponse(saved);
     }
 
-    public QuestionResponse updateQuestion(Long id, QuestionRequest request) {
+
+    public QuestionResponse updateQuestion(Long id, QuestionRequest request, MultipartFile image) {
         Question question = questionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy câu hỏi"));
 
@@ -55,8 +60,8 @@ public class QuestionQuizService {
         question.setAnswerB(request.getAnswerB());
         question.setAnswerC(request.getAnswerC());
         question.setAnswerD(request.getAnswerD());
-        question.setImageUrl(request.getImageUrl());
         question.setCorrectAnswer(request.getCorrectAnswer());
+
         question.setLimitedTime(request.getLimitedTime() != null
                 ? request.getLimitedTime()
                 : question.getLimitedTime());
@@ -65,10 +70,17 @@ public class QuestionQuizService {
                 ? request.getScore()
                 : question.getScore());
 
+        // Nếu có ảnh mới thì cập nhật
+        if (image != null && !image.isEmpty()) {
+            question.setImageUrl(QuizService.convertImageToBase64(image));
+        } else if (request.getImageUrl() != null) {
+            question.setImageUrl(request.getImageUrl());
+        }
 
         Question updated = questionRepository.save(question);
         return QuestionResponse.fromQuestionToQuestionResponse(updated);
     }
+
 
     public ResponseEntity<String> deleteQuestion(Long id) {
         if (!questionRepository.existsById(id)) {

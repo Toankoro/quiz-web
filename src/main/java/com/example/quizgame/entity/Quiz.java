@@ -19,7 +19,8 @@ public class Quiz {
     @OneToMany(mappedBy = "quiz", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<Question> questions = new ArrayList<>();
     private String description;
-    private boolean visibleTo; // public, private để boolean chứ
+    private boolean visibleTo;
+    @Column(columnDefinition = "LONGTEXT")
     private String imageUrl;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)

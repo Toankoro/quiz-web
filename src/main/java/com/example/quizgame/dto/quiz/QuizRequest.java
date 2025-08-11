@@ -1,4 +1,4 @@
-package com.example.quizgame.dto.request;
+package com.example.quizgame.dto.quiz;
 
 import com.example.quizgame.dto.question.QuestionRequest;
 import lombok.AllArgsConstructor;
@@ -17,5 +17,6 @@ public class QuizRequest {
     private String name;
     private boolean visibleTo;
     private String imageUrl;
+    private String description;
     private List<QuestionRequest> questions;
 }

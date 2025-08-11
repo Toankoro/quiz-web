@@ -38,7 +38,7 @@ public class UserController {
             userService.updateProfile(username, request);
             return ResponseEntity.ok("Profile updated successfully");
         } catch (IOException | IllegalArgumentException e) {
-            e.printStackTrace(); // 👈 log chi tiết lỗi
+            e.printStackTrace(); // log chi tiết lỗi
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Avatar upload failed: " + e.getMessage());
         }
