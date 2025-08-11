@@ -1,6 +1,6 @@
 package com.example.quizgame.reponsitory;
 
-import com.example.quizgame.dto.answer.PlayerAnswer;
+import com.example.quizgame.entity.PlayerAnswer;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

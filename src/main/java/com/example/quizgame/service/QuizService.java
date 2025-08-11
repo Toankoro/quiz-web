@@ -75,9 +75,9 @@ public class QuizService {
         );
     }
 
-    public ApiResponse<List<QuizResponse>> getAllQuizzesOfUser(Long userId, Pageable pageable) {
+    public ApiResponse<List<QuizResponse>> getAllQuizzesOfUser(User user, Pageable pageable) {
 
-        Page<Quiz> quizPage = quizRepository.findByCreatedBy(userId, pageable);
+        Page<Quiz> quizPage = quizRepository.findByCreatedBy(user.getId(), pageable);
 
         List<QuizResponse> quizResponses = quizPage
                 .map(this::convertToQuizResponse)
