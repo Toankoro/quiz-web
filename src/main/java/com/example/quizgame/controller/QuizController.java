@@ -36,9 +36,9 @@ public class QuizController {
     public ResponseEntity<ApiResponse<List<QuizResponse>>> getAllQuizzesUser(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) Long userId) {
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(quizService.getAllQuizzesOfUser(userId, pageable));
+        return ResponseEntity.ok(quizService.getAllQuizzesOfUser(userDetails.getUser(), pageable));
     }
 
     @GetMapping("/{id}")

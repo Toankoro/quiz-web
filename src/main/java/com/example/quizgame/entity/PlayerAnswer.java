@@ -1,7 +1,5 @@
-package com.example.quizgame.dto.answer;
+package com.example.quizgame.entity;
 
-import com.example.quizgame.entity.Question;
-import com.example.quizgame.entity.RoomParticipant;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,8 +27,13 @@ public class PlayerAnswer {
 
     private boolean correct;
 
-    private LocalDateTime answeredAt = LocalDateTime.now();
+    private LocalDateTime answeredAt;
 
     private Integer score;
+
+    @PrePersist
+    public void onCreate() {
+        this.answeredAt = LocalDateTime.now();
+    }
 
 }

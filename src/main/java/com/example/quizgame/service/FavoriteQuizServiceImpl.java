@@ -97,27 +97,16 @@ public class FavoriteQuizServiceImpl implements FavoriteQuizService {
 
         private FavoriteQuizResponse convertToResponse(FavoriteQuiz favoriteQuiz) {
                 Quiz quiz = favoriteQuiz.getQuiz();
-
-                List<QuestionResponse> questionResponses = quiz.getQuestions().stream()
-                                .map(q -> new QuestionResponse(
-                                                q.getId(),
-                                                q.getContent(),
-                                                q.getDescription(),
-                                                q.getAnswerA(),
-                                                q.getAnswerB(),
-                                                q.getAnswerC(),
-                                                q.getAnswerD(),
-                                                q.getImageUrl(),
-                                                q.getCorrectAnswer(),
-                                                q.getLimitedTime(),
-                                                q.getScore()))
-                                .collect(Collectors.toList());
-
                 return new FavoriteQuizResponse(
                                 favoriteQuiz.getId(),
                                 quiz.getId(),
+                                quiz.getName(),
                                 quiz.getTopic(),
+                                quiz.getDescription(),
                                 favoriteQuiz.getCreatedAt(),
-                                questionResponses);
+                                quiz.getImageUrl(),
+                                quiz.getCreatedBy().getUsername(),
+                                quiz.getCreatedBy().getAvatar()
+                                );
         }
 }
