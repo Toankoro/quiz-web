@@ -1,32 +1,27 @@
 package com.example.quizgame.dto.response;
 
-import com.example.quizgame.dto.question.QuestionResponse;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class FavoriteQuizResponse {
     private Long id;
     private Long quizId;
     private String quizTitle;
+    private String quizName;
+    private String quizDescription;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime addedAt;
-    private List<QuestionResponse> questions;
+    private String quizImageUrl;
+    private String creatorName;
+    private String creatorImageUrl;
 
-    public FavoriteQuizResponse() {
-    }
-
-    public FavoriteQuizResponse(Long id, Long quizId, String quizTitle, LocalDateTime addedAt,
-            List<QuestionResponse> questions) {
-        this.id = id;
-        this.quizId = quizId;
-        this.quizTitle = quizTitle;
-        this.addedAt = addedAt;
-        this.questions = questions;
-    }
 }

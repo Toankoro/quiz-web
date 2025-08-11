@@ -1,10 +1,10 @@
 package com.example.quizgame.entity;
-import com.example.quizgame.dto.answer.PlayerAnswer;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,4 +28,5 @@ public class RoomParticipant implements Serializable {
     private List<PlayerAnswer> answers = new ArrayList<>();
 
     private String clientSessionId;
+
 }

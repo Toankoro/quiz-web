@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class AnswerResult implements Serializable {
+    private Long questionId;
     private String clientSessionId;
     private Long roomParticipantId;
     private String selectedAnswer;

@@ -6,10 +6,7 @@ import com.example.quizgame.dto.answer.AnswerResult;
 import com.example.quizgame.dto.question.QuestionResponse;
 import com.example.quizgame.dto.question.ReconnectResponse;
 import com.example.quizgame.dto.supportcard.SupportCardType;
-import com.example.quizgame.entity.Question;
-import com.example.quizgame.entity.Room;
-import com.example.quizgame.entity.RoomParticipant;
-import com.example.quizgame.entity.User;
+import com.example.quizgame.entity.*;
 import com.example.quizgame.reponsitory.GameRankingRepository;
 import com.example.quizgame.reponsitory.QuestionRepository;
 import com.example.quizgame.reponsitory.RoomParticipantRepository;
@@ -94,6 +91,7 @@ public class QuestionService {
 
         // Lưu câu trả lời tạm thời
         AnswerResult temp = new AnswerResult(
+                questionId,
                 message.getClientSessionId(),
                 roomParticipant.getId(),
                 message.getSelectedAnswer(),
@@ -172,6 +170,7 @@ public class QuestionService {
 
             if (!submittedAnswers.containsKey(clientSessionId)) {
                 AnswerResult unanswered = new AnswerResult(
+                        question.getId(),
                         clientSessionId,
                         roomParticipant.getId(),
                         null,
