@@ -35,18 +35,6 @@ public class QuestionService {
     private final RoomRepository roomRepository;
     private final GameRankingService gameRankingService;
 
-
-    public QuestionResponse getCurrentQuestion(String roomCode, Long quizId) {
-        int currentIndex = questionRedisService.getCurrentQuestionIndex(roomCode);
-        List<QuestionResponse> questions = questionRedisService.getQuestionsByQuizId(quizId);
-
-        if (currentIndex >= 0 && currentIndex < questions.size()) {
-            return questions.get(currentIndex);
-        } else {
-            throw new IllegalStateException("Không đúng chỉ số của câu hỏi !");
-        }
-    }
-
     public AnswerResult handleAnswer(String pinCode, User user, AnswerMessage message) {
         Long questionId = questionRedisService.getCurrentQuestionId(pinCode);
         Long quizId = questionRedisService.getQuizIdByPinCode(pinCode);
@@ -63,7 +51,7 @@ public class QuestionService {
 
         int baseTimeLimit = 10000;
         int baseScore = question.getScore() != null ? question.getScore() : 200;
-        long timeTaken = message.getTimeTaken() != null ? message.getTimeTaken() : baseTimeLimit;
+        float timeTaken = message.getTimeTaken() != null ? message.getTimeTaken() : baseTimeLimit;
 
         String selectedAnswer = message.getSelectedAnswer();
         boolean isCorrect = selectedAnswer != null &&
@@ -89,7 +77,7 @@ public class QuestionService {
             }
         }
 
-        // Lưu câu trả lời tạm thời
+        // save answer temporary
         AnswerResult temp = new AnswerResult(
                 questionId,
                 message.getClientSessionId(),
@@ -102,24 +90,24 @@ public class QuestionService {
 
         roomParticipantRedisService.saveAnswer(pinCode, questionId, message.getClientSessionId(), temp);
 
-        // Trả về kết quả
+        // send result to participant
         AnswerResult result = new AnswerResult();
         result.setCorrect(isCorrect);
         result.setScore(score);
 
+        roomParticipantRedisService.saveAnswerHistory(pinCode, result.getClientSessionId(), result);
         messagingTemplate.convertAndSendToUser(
                 message.getClientSessionId(),
                 "/queue/answer-result",
                 result
         );
-
         gameRankingService.addScoreAndCorrect(room, user, result.getScore());
         return result;
 
     }
 
 
-    private int calculateScore(long timeTakenMillis, int timeLimitMillis, int maxScore) {
+    private int calculateScore(float timeTakenMillis, int timeLimitMillis, int maxScore) {
         if (timeTakenMillis > timeLimitMillis) {
             return 0;
         }
@@ -145,7 +133,6 @@ public class QuestionService {
             }
         }
 
-//        clearAllSupportCards(pinCode);
         QuestionResponse next = questions.get(currentIndex);
         if (next == null) return null;
 
@@ -176,10 +163,11 @@ public class QuestionService {
                         null,
                         0,
                         false,
-                        10L
+                        Float.parseFloat(question.getLimitedTime().toString())
                 );
 
                 roomParticipantRedisService.saveUnanswered(pinCode, question.getId(), clientSessionId, unanswered);
+                roomParticipantRedisService.saveAnswerHistory(pinCode, clientSessionId, unanswered);
             }
         }
 

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface QuestionRepository extends JpaRepository<Question, Long> {
@@ -13,5 +14,7 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
     List<Question> findByQuiz_IdOrderByIdAsc(Long quizId);
 
     List<Question> findAllByQuiz_Id(Long quizId);
+
+    Optional<Question> findByIdAndQuiz_Id(Long questionId, Long quizId);
 
 }

@@ -73,15 +73,17 @@ public class RoomService {
         if (room.getStartedAt() != null) {
             throw new RuntimeException("Phòng đã được bắt đầu. Không thể tham gia.");
         }
+        String clientSessionId = roomParticipantRedisService.createAndStoreClientSession(pin, user.getUsername());
+
         RoomParticipant p = new RoomParticipant();
         p.setRoom(room);
         p.setUser(user);
         p.setHost(false);
+        p.setClientSessionId(clientSessionId);
         participantRepo.save(p);
         userService.increaseExp(user, 10); // Cộng 10 EXP mỗi lần tham gia
         userRepository.save(user);
 
-        String clientSessionId = roomParticipantRedisService.createAndStoreClientSession(pin, user.getUsername());
         messagingTemplate.convertAndSend("/topic/room/" + room.getId(), getParticipants(room));
         return RoomJoinResponse.from(room, clientSessionId);
     }
@@ -105,6 +107,7 @@ public class RoomService {
         roomRepo.save(room);
 
         Long quizId = room.getQuiz().getId();
+
         List<QuestionResponse> questions = questionRedisService.getQuestionsByQuizId(quizId);
         questionRedisService.setQuizIdByPinCode(room.getPinCode(), quizId);
         questionRedisService.setCurrentQuestionId(room.getPinCode(), questions.get(0).getId());
@@ -138,17 +141,6 @@ public class RoomService {
                 .filter(p -> !p.isHost())
                 .map(p -> new ParticipantDTO(p.getUser().getId(), p.getUser().getFirstname(), p.getUser().getAvatar(),false))
                 .toList();
-    }
-
-    public QuestionResponse getCurrentQuestion(String roomCode, Long quizId) {
-        int currentIndex = questionRedisService.getCurrentQuestionIndex(roomCode);
-        List<QuestionResponse> questions = questionRedisService.getQuestionsByQuizId(quizId);
-
-        if (currentIndex >= 0 && currentIndex < questions.size()) {
-            return questions.get(currentIndex);
-        } else {
-            throw new IllegalStateException("Không đúng chỉ số của câu hỏi !");
-        }
     }
 
     public boolean isHostRoom (Long roomId, User user) {
