@@ -1,6 +1,7 @@
 package com.example.quizgame.entity;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
+@Builder
 public class PlayerAnswer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,7 +20,7 @@ public class PlayerAnswer {
     @JoinColumn(name = "room_participant_id")
     private RoomParticipant roomParticipant;
 
-    private String sessionId;
+    private String clientSessionId;
 
     @ManyToOne
     private Question question;

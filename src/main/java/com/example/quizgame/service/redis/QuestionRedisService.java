@@ -180,35 +180,14 @@ public class QuestionRedisService {
         return selected;
     }
     // get question by id from redis in memory
-    public QuestionResponse getQuestionById(Long quizId, Long questionId) {
-        String redisKey = "quiz:" + quizId + ":questions";
-        Object cached = redisTemplate.opsForValue().get(redisKey);
-        if (cached != null && cached instanceof List<?>) {
-            return ((List<?>) cached).stream()
-                    .filter(obj -> obj instanceof Map)
-                    .map(obj -> QuestionResponse.convertFromMap((Map<String, Object>) obj))
-                    .filter(q -> q.getId().equals(questionId))
-                    .findFirst()
-                    .orElse(null);
-        }
-        return null;
-    }
-
-    // get list question by quiz id
     public List<QuestionResponse> getQuestionsByQuizId(Long quizId) {
         String redisKey = "quiz:" + quizId + ":questions";
 
-        Object cached = redisTemplate.opsForValue().get(redisKey);
-        if (cached != null && cached instanceof List<?>) {
-            List<?> rawList = (List<?>) cached;
-            List<QuestionResponse> result = new ArrayList<>();
-
-            for (Object obj : rawList) {
-                QuestionResponse qr = objectMapper.convertValue(obj, QuestionResponse.class);
-                result.add(qr);
-            }
-
-            return result;
+        Map<Object, Object> cached = redisTemplate.opsForHash().entries(redisKey);
+        if (!cached.isEmpty()) {
+            return cached.values().stream()
+                    .map(obj -> objectMapper.convertValue(obj, QuestionResponse.class))
+                    .collect(Collectors.toList());
         }
 
         List<Question> questionEntities = questionRepo.findByQuizId(quizId);
@@ -216,9 +195,38 @@ public class QuestionRedisService {
                 .map(QuestionResponse::fromQuestionToQuestionResponse)
                 .collect(Collectors.toList());
 
-        redisTemplate.opsForValue().set(redisKey, questions, 30, TimeUnit.MINUTES);
+        Map<String, Object> mapToCache = new HashMap<>();
+        for (QuestionResponse q : questions) {
+            mapToCache.put(q.getId().toString(), q);
+        }
+        redisTemplate.opsForHash().putAll(redisKey, mapToCache);
+        redisTemplate.expire(redisKey, 1, TimeUnit.DAYS);
+
         return questions;
     }
+
+    public QuestionResponse getQuestionById(Long quizId, Long questionId) {
+        String redisKey = "quiz:" + quizId + ":questions";
+        Object cached = redisTemplate.opsForHash().get(redisKey, questionId.toString());
+        if (cached != null) {
+            return objectMapper.convertValue(cached, QuestionResponse.class);
+        }
+
+        Question question = questionRepo.findByIdAndQuiz_Id(questionId, quizId)
+                .orElse(null);
+
+        if (question == null) {
+            return null;
+        }
+
+        QuestionResponse response = QuestionResponse.fromQuestionToQuestionResponse(question);
+        redisTemplate.opsForHash().put(redisKey, questionId.toString(), response);
+        redisTemplate.expire(redisKey, 30, TimeUnit.MINUTES);
+
+        return response;
+    }
+
+
 
     // set, get startTime for question
     public void setQuestionStartTime(String roomCode, Long questionId, long startTime) {
