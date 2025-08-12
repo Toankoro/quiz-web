@@ -5,6 +5,7 @@ import com.example.quizgame.dto.question.QuestionResponseToParticipant;
 import com.example.quizgame.dto.room.ParticipantDTO;
 import com.example.quizgame.dto.room.RoomJoinResponse;
 import com.example.quizgame.dto.room.RoomResponse;
+import com.example.quizgame.dto.user.UserProfileUpdateRequest;
 import com.example.quizgame.entity.*;
 import com.example.quizgame.qr.QRCodeGenerator;
 import com.example.quizgame.reponsitory.*;
@@ -19,6 +20,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -36,6 +40,7 @@ public class RoomService {
     private final QuestionRedisService questionRedisService;
     private final UserRepository userRepository;
     private final GameRankingRepository gameRankingRepo;
+    private final RoomParticipantRepository roomParticipantRepository;
 
     public RoomResponse createRoom(Long quizId, User host) {
         if (participantRepo.existsByUserAndRoomStartedAtIsNull(host)) {
@@ -139,7 +144,7 @@ public class RoomService {
         // Trả về danh sách người chơi KHÔNG phải host
         return participants.stream()
                 .filter(p -> !p.isHost())
-                .map(p -> new ParticipantDTO(p.getUser().getId(), p.getUser().getFirstname(), p.getUser().getAvatar(),false))
+                .map(p -> new ParticipantDTO(p.getUser().getId(), p.getUser().getFirstname(), p.getAvatar(),false))
                 .toList();
     }
 
@@ -189,7 +194,7 @@ public class RoomService {
 
     private List<ParticipantDTO> getParticipants(Room room) {
         return room.getParticipants().stream().map(rp ->
-                new ParticipantDTO(rp.getUser().getId(), rp.getUser().getFirstname(),rp.getUser().getAvatar(), rp.isHost())
+                new ParticipantDTO(rp.getUser().getId(), rp.getUser().getFirstname(),rp.getAvatar(), rp.isHost())
         ).toList();
     }
 
@@ -211,4 +216,33 @@ public class RoomService {
         participantRepo.deleteAllByRoomId(roomId);
         roomRepo.deleteById(roomId);
     }
+
+    public ParticipantDTO updateAvatarRoom(Long roomId, Long userId, UserProfileUpdateRequest req) {
+        RoomParticipant participant = roomParticipantRepository
+                .findByRoomIdAndUserId(roomId, userId)
+                .orElseThrow(() -> new RuntimeException("RoomParticipant not found in this room"));
+
+        MultipartFile file = req.getAvatar();
+        try {
+            String contentType = file.getContentType();
+            if (contentType != null && contentType.startsWith("image/")) {
+                String base64 = Base64.getEncoder().encodeToString(file.getBytes());
+                participant.setAvatar("data:" + contentType + ";base64," + base64);
+            } else {
+                throw new IllegalArgumentException("Uploaded file is not an image");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error processing file", e);
+        }
+
+        RoomParticipant saved = roomParticipantRepository.save(participant);
+
+        return new ParticipantDTO(
+                saved.getId(),
+                saved.getUser().getFirstname(),
+                saved.getAvatar(),
+                saved.isHost()
+        );
+    }
+
 }
