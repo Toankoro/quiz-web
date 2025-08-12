@@ -25,6 +25,7 @@ public class Question {
     private String answerB;
     private String answerC;
     private String answerD;
+    @Column(columnDefinition = "LONGTEXT")
     private String imageUrl;
     
     @NotBlank(message = "Chưa chọn đáp án đúng")
