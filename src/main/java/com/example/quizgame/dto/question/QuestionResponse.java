@@ -33,6 +33,7 @@ public class QuestionResponse {
                .answerB(question.getAnswerB())
                .answerC(question.getAnswerC())
                .answerD(question.getAnswerD())
+               .imageUrl(question.getImageUrl())
                .score(question.getScore())
                .limitedTime(question.getLimitedTime() != null ? question.getLimitedTime() : 20)
                .correctAnswer(question.getCorrectAnswer())
