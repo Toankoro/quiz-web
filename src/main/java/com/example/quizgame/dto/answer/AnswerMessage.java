@@ -5,6 +5,6 @@ import lombok.Data;
 @Data
 public class AnswerMessage {
     private String selectedAnswer;
-    private Long timeTaken;
+    private Float timeTaken;
     private String clientSessionId;
 }

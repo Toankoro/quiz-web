@@ -1,6 +1,8 @@
 package com.example.quizgame.dto.question;
 
 import com.example.quizgame.entity.Question;
+import com.example.quizgame.entity.Quiz;
+import com.example.quizgame.reponsitory.QuestionRepository;
 import lombok.*;
 
 import java.util.Map;
@@ -38,6 +40,23 @@ public class QuestionResponse {
                .limitedTime(question.getLimitedTime() != null ? question.getLimitedTime() : 20)
                .correctAnswer(question.getCorrectAnswer())
                .build();
+    }
+
+    public static Question fromQuestionResponseToQuestion (QuestionResponse questionResponse, Quiz quiz) {
+        return Question.builder()
+                .id(questionResponse.getId())
+                .content(questionResponse.getContent())
+                .description(questionResponse.getDescription())
+                .answerA(questionResponse.getAnswerA())
+                .answerB(questionResponse.answerB)
+                .answerC(questionResponse.answerC)
+                .answerD(questionResponse.answerD)
+                .imageUrl(questionResponse.getImageUrl())
+                .correctAnswer(questionResponse.getCorrectAnswer())
+                .limitedTime(questionResponse.getLimitedTime())
+                .score(questionResponse.getScore())
+                .quiz(quiz)
+                .build();
     }
 
     public static QuestionResponse convertFromMap(Map<String, Object> map) {

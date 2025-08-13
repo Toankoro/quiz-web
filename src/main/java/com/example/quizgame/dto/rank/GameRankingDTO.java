@@ -11,14 +11,16 @@ import lombok.NoArgsConstructor;
 public class GameRankingDTO {
     private Long id;
     private String firstName;
+    private String avatar;
     private int score;
     private int correctCount;
     private int ranking;
 
-    public static GameRankingDTO from(GameRanking r) {
+    public static GameRankingDTO from(GameRanking r, String avatar) {
         return new GameRankingDTO(
                 r.getUser().getId(),
                 r.getUser().getFirstname(),
+                avatar,
                 r.getScore(),
                 r.getCorrectCount(),
                 r.getRanking()

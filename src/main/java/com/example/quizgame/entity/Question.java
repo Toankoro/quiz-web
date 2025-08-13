@@ -3,16 +3,14 @@ package com.example.quizgame.entity;
 import com.example.quizgame.dto.QuestionListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
+@Builder
 @EntityListeners(QuestionListener.class)
 public class Question {
     @Id
