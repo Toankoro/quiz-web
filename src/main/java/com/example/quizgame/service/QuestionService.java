@@ -85,24 +85,20 @@ public class QuestionService {
                 message.getSelectedAnswer(),
                 score,
                 isCorrect,
-                timeTaken
+                timeTaken,
+                question.getCorrectAnswer()
         );
 
         roomParticipantRedisService.saveAnswer(pinCode, questionId, message.getClientSessionId(), temp);
 
-        // send result to participant
-        AnswerResult result = new AnswerResult();
-        result.setCorrect(isCorrect);
-        result.setScore(score);
-
-        roomParticipantRedisService.saveAnswerHistory(pinCode, result.getClientSessionId(), result);
+        roomParticipantRedisService.saveAnswerHistory(pinCode, temp.getClientSessionId(), temp);
         messagingTemplate.convertAndSendToUser(
                 message.getClientSessionId(),
                 "/queue/answer-result",
-                result
+                temp
         );
-        gameRankingService.addScoreAndCorrect(room, user, result.getScore());
-        return result;
+        gameRankingService.addScoreAndCorrect(room, user, temp.getScore());
+        return temp;
 
     }
 
@@ -163,7 +159,8 @@ public class QuestionService {
                         null,
                         0,
                         false,
-                        Float.parseFloat(question.getLimitedTime().toString())
+                        Float.parseFloat(question.getLimitedTime().toString()),
+                        question.getCorrectAnswer()
                 );
 
                 roomParticipantRedisService.saveUnanswered(pinCode, question.getId(), clientSessionId, unanswered);

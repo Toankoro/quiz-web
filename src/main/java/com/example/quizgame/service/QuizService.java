@@ -46,6 +46,7 @@ public class QuizService {
         List<Question> questions = request.getQuestions().stream().map(qr -> {
             Question q = new Question();
             q.setContent(qr.getContent());
+            q.setDescription(qr.getDescription());
             q.setAnswerA(qr.getAnswerA());
             q.setAnswerB(qr.getAnswerB());
             q.setAnswerC(qr.getAnswerC());

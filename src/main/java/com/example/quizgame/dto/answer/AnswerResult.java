@@ -18,4 +18,5 @@ public class AnswerResult implements Serializable {
     private int score;
     private boolean correct;
     private Float timeTaken;
+    private String correctAnswer;
 }
