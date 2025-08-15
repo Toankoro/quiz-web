@@ -17,6 +17,7 @@ public interface RoomParticipantRepository extends JpaRepository<RoomParticipant
     boolean existsByUserAndRoomStartedAtIsNull(User user);
     Optional<RoomParticipant> findByRoomIdAndUserId(Long roomId, Long userId);
     void deleteAllByRoomId(Long roomId);
+    Optional<RoomParticipant> findByUserId(Long userId);
     Optional<RoomParticipant> findByRoomIdAndUserIdAndRoom_StartedAtIsNull(Long roomId, Long userId);
     Optional<List<RoomParticipant>> findByRoom_PinCode (String pinCode);
     Optional<RoomParticipant> findByRoom_PinCodeAndUser_Username(String pinCode, String username);

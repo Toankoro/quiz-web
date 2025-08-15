@@ -2,16 +2,13 @@ package com.example.quizgame.controller;
 
 import com.example.quizgame.dto.chat.CustomUserDetails;
 import com.example.quizgame.dto.room.ParticipantDTO;
+import com.example.quizgame.dto.user.UserProfileUpdateRequest;
 import com.example.quizgame.entity.Room;
 import com.example.quizgame.entity.RoomParticipant;
-import com.example.quizgame.entity.User;
-import com.example.quizgame.reponsitory.RoomParticipantRepository;
-import com.example.quizgame.reponsitory.RoomRepository;
 import com.example.quizgame.service.RoomService;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -82,5 +79,18 @@ public class RoomController {
         List<ParticipantDTO> participants = roomService.startRoom(roomId, userDetails.getUser());
         return ResponseEntity.ok(participants);
     }
+    @PutMapping("/{roomId}/avatar")
+    public ResponseEntity<ParticipantDTO> updateAvatar(
+            @PathVariable Long roomId,
+            @ModelAttribute UserProfileUpdateRequest req,
+            Authentication authentication) {
+
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Long userId = userDetails.getId();
+
+        ParticipantDTO updated = roomService.updateAvatarRoom(roomId, userId, req);
+        return ResponseEntity.ok(updated);
+    }
+
 
 }

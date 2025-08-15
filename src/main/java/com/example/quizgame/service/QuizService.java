@@ -85,6 +85,7 @@ public class QuizService {
                 .name(quiz.getName())
                 .description(quiz.getDescription())
                 .visibleTo(quiz.isVisibleTo())
+                .imageUrl(quiz.getImageUrl()) // Thêm trường ảnh bìa
                 .questions(questions)
                 .favorite(isFavorite)
                 .createdBy(creatorProfile)
@@ -246,6 +247,15 @@ public class QuizService {
             request.getQuestions().forEach(q -> {
                 Question question = new Question();
                 question.setContent(q.getContent());
+                question.setDescription(q.getDescription());// thêm mới
+                question.setAnswerA(q.getAnswerA());
+                question.setAnswerB(q.getAnswerB());
+                question.setAnswerC(q.getAnswerC());
+                question.setAnswerD(q.getAnswerD());
+                question.setCorrectAnswer(q.getCorrectAnswer());
+                question.setLimitedTime(q.getLimitedTime());
+                question.setScore(q.getScore());
+                question.setImageUrl(q.getImageUrl());
                 question.setQuiz(quiz);
                 quiz.getQuestions().add(question);
             });

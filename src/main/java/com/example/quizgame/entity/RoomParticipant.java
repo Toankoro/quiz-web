@@ -24,6 +24,10 @@ public class RoomParticipant implements Serializable {
 
     private boolean isHost;
 
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String avatar;
+
     @OneToMany(mappedBy = "roomParticipant", cascade = CascadeType.ALL)
     private List<PlayerAnswer> answers = new ArrayList<>();
 
