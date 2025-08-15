@@ -181,11 +181,11 @@ public class QuestionRedisService {
     }
     // get question by id from redis in memory
     public List<QuestionResponse> getQuestionsByQuizId(Long quizId) {
-        String redisKey = "quiz:" + quizId + ":questions";
+        String redisKey = "quiz:" + quizId + ":questions:list";
 
-        Map<Object, Object> cached = redisTemplate.opsForHash().entries(redisKey);
-        if (!cached.isEmpty()) {
-            return cached.values().stream()
+        List<Object> cached = redisTemplate.opsForList().range(redisKey, 0, -1);
+        if (cached != null && !cached.isEmpty()) {
+            return cached.stream()
                     .map(obj -> objectMapper.convertValue(obj, QuestionResponse.class))
                     .collect(Collectors.toList());
         }
@@ -195,21 +195,27 @@ public class QuestionRedisService {
                 .map(QuestionResponse::fromQuestionToQuestionResponse)
                 .collect(Collectors.toList());
 
-        Map<String, Object> mapToCache = new HashMap<>();
+        // Lưu vào Redis dưới dạng List
         for (QuestionResponse q : questions) {
-            mapToCache.put(q.getId().toString(), q);
+            redisTemplate.opsForList().rightPush(redisKey, q);
         }
-        redisTemplate.opsForHash().putAll(redisKey, mapToCache);
         redisTemplate.expire(redisKey, 1, TimeUnit.DAYS);
 
         return questions;
     }
 
+
     public QuestionResponse getQuestionById(Long quizId, Long questionId) {
-        String redisKey = "quiz:" + quizId + ":questions";
-        Object cached = redisTemplate.opsForHash().get(redisKey, questionId.toString());
-        if (cached != null) {
-            return objectMapper.convertValue(cached, QuestionResponse.class);
+        String redisKey = "quiz:" + quizId + ":questions:list";
+
+        List<Object> cachedList = redisTemplate.opsForList().range(redisKey, 0, -1);
+        if (cachedList != null && !cachedList.isEmpty()) {
+            for (Object obj : cachedList) {
+                QuestionResponse qr = objectMapper.convertValue(obj, QuestionResponse.class);
+                if (qr.getId().equals(questionId)) {
+                    return qr;
+                }
+            }
         }
 
         Question question = questionRepo.findByIdAndQuiz_Id(questionId, quizId)
@@ -220,11 +226,20 @@ public class QuestionRedisService {
         }
 
         QuestionResponse response = QuestionResponse.fromQuestionToQuestionResponse(question);
-        redisTemplate.opsForHash().put(redisKey, questionId.toString(), response);
-        redisTemplate.expire(redisKey, 30, TimeUnit.MINUTES);
+
+        if (cachedList == null || cachedList.isEmpty()) {
+            List<Question> allQuestions = questionRepo.findByQuizId(quizId);
+            for (Question q : allQuestions) {
+                redisTemplate.opsForList().rightPush(redisKey, QuestionResponse.fromQuestionToQuestionResponse(q));
+            }
+            redisTemplate.expire(redisKey, 1, TimeUnit.DAYS);
+        } else {
+            redisTemplate.opsForList().rightPush(redisKey, response);
+        }
 
         return response;
     }
+
 
 
 

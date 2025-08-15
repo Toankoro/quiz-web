@@ -26,6 +26,7 @@ public class QuizResponse {
     private String name;
     private String description;
     private boolean visibleTo;
+    private String imageUrl; // Thêm trường ảnh bìa
     private List<QuestionResponse> questions;
     private Boolean favorite;
     private UserProfileResponse createdBy;
