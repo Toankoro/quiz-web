@@ -38,11 +38,23 @@ public class QuestionController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         if (message == null) {
-            System.out.println("Câu trả lời null!");
             return ResponseEntity.badRequest().build();
         }
-        AnswerResult result = questionService.handleAnswer(pinCode, userDetails.getUser(), message);
-        return ResponseEntity.ok(result);
+        
+        try {
+            AnswerResult result = questionService.handleAnswer(pinCode, userDetails.getUser(), message);
+            
+            if (result == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(null);
+            }
+            
+            return ResponseEntity.ok(result);
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(null);
+        }
     }
 
     @PostMapping("/{pinCode}/next-question")

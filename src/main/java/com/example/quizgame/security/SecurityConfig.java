@@ -35,6 +35,7 @@ public class SecurityConfig {
         http.securityMatcher("/**")
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers( "/auth/register", "/auth/**", "/ws/**").permitAll()
+                        .requestMatchers("/api/player-answers/**").permitAll() // Allow save history without auth
                         .requestMatchers("/usersAddNew", "/resources/**", "/css/**", "/fonts/**", "/img/**", "/js/**").permitAll()
                         .requestMatchers("/register/verify", "/resources/**", "/css/**", "/fonts/**", "/img/**", "/js/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")

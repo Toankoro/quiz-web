@@ -57,15 +57,19 @@ public class RoomService {
         room.setHost(host);
         room.setQuiz(quiz);
 
+        // Lưu room trước để có ID
+        Room savedRoom = roomRepo.save(room);
+
+        // Tạo và lưu RoomParticipant cho host
         RoomParticipant participant = new RoomParticipant();
-        participant.setRoom(room);
+        participant.setRoom(savedRoom);
         participant.setUser(host);
         participant.setHost(true);
+        
+        // Lưu participant vào database
+        participantRepo.save(participant);
 
-        room.getParticipants().add(participant);
-
-        Room saved = roomRepo.save(room);
-        return RoomResponse.from(saved);
+        return RoomResponse.from(savedRoom);
     }
 
     public RoomJoinResponse joinRoom(String pin, User user) {
@@ -134,12 +138,15 @@ public class RoomService {
         questionRedisService.setCurrentQuestionIndex(room.getPinCode(), 0);
         questionRedisService.lockRoomAndCommitCards(room.getPinCode());
         gameRankingRepo.saveAll(rankings);
-        // Gửi thông báo "phòng đã bắt đầu"
+        
+        // Gửi câu hỏi đầu tiên cho tất cả participants (bao gồm cả host và players)
         boolean isQuestionLast = false;
         if (questions.size() <= 1){
             isQuestionLast = true;
         }
-        messagingTemplate.convertAndSend("/topic/room/" + roomId, QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(0), isQuestionLast));
+        
+        QuestionResponseToParticipant firstQuestion = QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(0), isQuestionLast);
+        messagingTemplate.convertAndSend("/topic/room/" + roomId, firstQuestion);
 
         // Trả về danh sách người chơi KHÔNG phải host
         return participants.stream()
