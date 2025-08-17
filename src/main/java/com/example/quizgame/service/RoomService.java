@@ -184,6 +184,25 @@ public class RoomService {
         RoomParticipant target = participantRepo.findByRoomIdAndUserIdAndRoom_StartedAtIsNull(roomId, targetId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng trong phòng."));
         Room room = roomRepo.findById(roomId).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với roomId"));
+        
+        // Gửi thông báo kick riêng cho user bị kick trước khi xóa session
+        String clientSessionId = target.getClientSessionId();
+        if (clientSessionId != null) {
+            System.out.println("=== KICK USER DEBUG ===");
+            System.out.println("Sending kick message to clientSessionId: " + clientSessionId);
+            System.out.println("Target user: " + target.getUser().getFirstname());
+            
+            messagingTemplate.convertAndSendToUser(
+                clientSessionId, 
+                "/queue/kick", 
+                "Bạn đã bị kick khỏi phòng bởi chủ phòng!"
+            );
+            
+            System.out.println("Kick message sent successfully");
+        } else {
+            System.out.println("WARNING: clientSessionId is null, cannot send kick message");
+        }
+        
         roomParticipantRedisService.removeClientSession(room.getPinCode(), target.getClientSessionId());
         participantRepo.delete(target);
         messagingTemplate.convertAndSend("/topic/room/" + roomId, getParticipants(hostP.getRoom()));
