@@ -40,14 +40,24 @@ public class QuestionService {
         Long quizId = questionRedisService.getQuizIdByPinCode(pinCode);
         QuestionResponse question = questionRedisService.getQuestionById(quizId, questionId);
 
-        Room room = roomRepository.findByPinCode(pinCode).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với pinCode"));
-        if (question == null) return null;
+        if (question == null) {
+            return null;
+        }
+
+        Room room;
+        try {
+            room = roomRepository.findByPinCode(pinCode).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với pinCode"));
+        } catch (NoSuchElementException e) {
+            return null;
+        }
 
         RoomParticipant roomParticipant = roomParticipantRepository
                 .findByRoom_PinCodeAndUser_Username(pinCode, user.getUsername())
                 .orElse(null);
 
-        if (roomParticipant == null) return null;
+        if (roomParticipant == null) {
+            return null;
+        }
 
         int baseTimeLimit = 10000;
         int baseScore = question.getScore() != null ? question.getScore() : 200;
@@ -85,15 +95,26 @@ public class QuestionService {
                 message.getSelectedAnswer(),
                 score,
                 isCorrect,
-                timeTaken
+                timeTaken,
+                question.getCorrectAnswer()
         );
 
         roomParticipantRedisService.saveAnswer(pinCode, questionId, message.getClientSessionId(), temp);
 
         // send result to participant
-        AnswerResult result = new AnswerResult();
-        result.setCorrect(isCorrect);
-        result.setScore(score);
+        AnswerResult result = new AnswerResult(
+            questionId,
+            message.getClientSessionId(),
+            roomParticipant.getId(),
+            message.getSelectedAnswer(),
+            score,
+            isCorrect,
+            timeTaken,
+            question.getCorrectAnswer()
+        );
+
+        // THÊM: Set correctAnswer để frontend biết đáp án đúng
+        result.setCorrectAnswer(question.getCorrectAnswer());
 
         roomParticipantRedisService.saveAnswerHistory(pinCode, result.getClientSessionId(), result);
         messagingTemplate.convertAndSendToUser(
@@ -125,6 +146,13 @@ public class QuestionService {
         int currentIndex = questionRedisService.getCurrentQuestionIndex(pinCode);
         if (currentIndex >= questions.size()) return null;
 
+        // Sửa: Chỉ lấy câu hỏi tiếp theo, không lấy câu hỏi đầu tiên
+        if (currentIndex == 0) {
+            // Nếu đang ở câu hỏi đầu tiên, tăng index lên 1 để lấy câu hỏi thứ 2
+            currentIndex = 1;
+            questionRedisService.setCurrentQuestionIndex(pinCode, currentIndex);
+        }
+
         if (currentIndex > 0) {
             Long prevId = questions.get(currentIndex - 1).getId();
             Question prev = questionRepository.findById(prevId).orElse(null);
@@ -155,16 +183,22 @@ public class QuestionService {
         for (RoomParticipant roomParticipant : roomParticipants) {
             String clientSessionId = roomParticipant.getClientSessionId(); // Giả định bạn có trường này
 
+            // Thêm guard bỏ qua host (null session) để tránh lỗi "non null hash key required"
+            if (clientSessionId == null || clientSessionId.trim().isEmpty()) {
+                continue; // Bỏ qua host không có clientSessionId
+            }
+
             if (!submittedAnswers.containsKey(clientSessionId)) {
-                AnswerResult unanswered = new AnswerResult(
-                        question.getId(),
-                        clientSessionId,
-                        roomParticipant.getId(),
-                        null,
-                        0,
-                        false,
-                        Float.parseFloat(question.getLimitedTime().toString())
-                );
+                                 AnswerResult unanswered = new AnswerResult(
+                         question.getId(),
+                         clientSessionId,
+                         roomParticipant.getId(),
+                         null,
+                         0,
+                         false,
+                         Float.parseFloat(question.getLimitedTime().toString()),
+                         question.getCorrectAnswer()
+                 );
 
                 roomParticipantRedisService.saveUnanswered(pinCode, question.getId(), clientSessionId, unanswered);
                 roomParticipantRedisService.saveAnswerHistory(pinCode, clientSessionId, unanswered);

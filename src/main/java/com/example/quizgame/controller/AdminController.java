@@ -40,20 +40,14 @@ public class AdminController {
                 firstname != null && !firstname.trim().isEmpty() ? firstname.trim() : null,
                 PageRequest.of(page, size)
         );
-
-        return users.map(user -> new UserDTO(
-                user.getId(),
-                user.getUsername(),
-                user.getFirstname(),
-                user.getEmail()
-        ));
+        return users.map(UserDTO::fromUserToUserDTO);
     }
 
     // Khóa tài khoản
     @PostMapping("/ban/{id}")
     public void banUser(@PathVariable Long id) {
         User user = userRepo.findById(id).orElseThrow();
-        user.setLoginDisabled(false);
+        user.setLoginDisabled(true);
         userRepo.save(user);
     }
 
@@ -61,7 +55,7 @@ public class AdminController {
     @PostMapping("/unban/{id}")
     public void unbanUser(@PathVariable Long id) {
         User user = userRepo.findById(id).orElseThrow();
-        user.setLoginDisabled(true);
+        user.setLoginDisabled(false);
         userRepo.save(user);
     }
 

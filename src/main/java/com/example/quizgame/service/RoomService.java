@@ -40,6 +40,7 @@ public class RoomService {
     private final QuestionRedisService questionRedisService;
     private final UserRepository userRepository;
     private final GameRankingRepository gameRankingRepo;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final RoomParticipantRepository roomParticipantRepository;
 
     public RoomResponse createRoom(Long quizId, User host) {
@@ -57,21 +58,29 @@ public class RoomService {
         room.setHost(host);
         room.setQuiz(quiz);
 
+        Room savedRoom = roomRepo.save(room);
+        String clientSessionId = roomParticipantRedisService.createAndStoreClientSession(pin, host.getUsername());
         RoomParticipant participant = new RoomParticipant();
-        participant.setRoom(room);
+        participant.setRoom(savedRoom);
         participant.setUser(host);
         participant.setHost(true);
 
+        // Lưu participant vào database
+        participantRepo.save(participant);
+        participant.setClientSessionId(clientSessionId);
+
         room.getParticipants().add(participant);
 
-        Room saved = roomRepo.save(room);
-        return RoomResponse.from(saved);
+        return RoomResponse.from(savedRoom);
     }
 
     public RoomJoinResponse joinRoom(String pin, User user) {
         Room room = roomRepo.findByPinCodeAndStartedAtIsNull(pin)
                 .orElseThrow(() -> new RuntimeException("Phòng không tồn tại hoặc đã bắt đầu"));
-
+        List<ParticipantDTO> participants = room.getParticipants().stream()
+                .filter(p -> !p.isHost())
+                .map(p -> new ParticipantDTO(p.getUser().getId(), p.getUser().getFirstname(), p.getUser().getAvatar(),false))
+                .toList();;
         if (participantRepo.existsByUserAndRoomStartedAtIsNull(user)) {
             throw new RuntimeException("Bạn đang ở trong một phòng khác.");
         }
@@ -90,7 +99,7 @@ public class RoomService {
         userRepository.save(user);
 
         messagingTemplate.convertAndSend("/topic/room/" + room.getId(), getParticipants(room));
-        return RoomJoinResponse.from(room, clientSessionId);
+        return RoomJoinResponse.from(room, clientSessionId, participants);
     }
 
     public List<ParticipantDTO> startRoom(Long roomId, User user) {
@@ -113,9 +122,12 @@ public class RoomService {
 
         Long quizId = room.getQuiz().getId();
 
-        List<QuestionResponse> questions = questionRedisService.getQuestionsByQuizId(quizId);
+        final int currentIndex = 0;
         questionRedisService.setQuizIdByPinCode(room.getPinCode(), quizId);
-        questionRedisService.setCurrentQuestionId(room.getPinCode(), questions.get(0).getId());
+        List<QuestionResponse> questions = questionRedisService.getQuestionsByQuizId(quizId);
+        questionRedisService.setCurrentQuestionIndex(room.getPinCode(), currentIndex);
+        questionRedisService.setCurrentQuestionId(room.getPinCode(), questions.get(currentIndex).getId());
+
 
         // Tạo dữ liệu GameRanking cho từng người chơi trong phòng
         List<RoomParticipant> participants = room.getParticipants();
@@ -134,12 +146,13 @@ public class RoomService {
         questionRedisService.setCurrentQuestionIndex(room.getPinCode(), 0);
         questionRedisService.lockRoomAndCommitCards(room.getPinCode());
         gameRankingRepo.saveAll(rankings);
-        // Gửi thông báo "phòng đã bắt đầu"
-        boolean isQuestionLast = false;
-        if (questions.size() <= 1){
-            isQuestionLast = true;
-        }
-        messagingTemplate.convertAndSend("/topic/room/" + roomId, QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(0), isQuestionLast));
+
+
+        boolean isQuestionLast = currentIndex == (questions.size() - 1);
+        QuestionResponseToParticipant firstQuestion = QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(0), isQuestionLast);
+        messagingTemplate.convertAndSend("/topic/room/" + roomId, firstQuestion);
+
+        messagingTemplate.convertAndSend("/topic/room/" + roomId, QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(currentIndex), isQuestionLast));
 
         // Trả về danh sách người chơi KHÔNG phải host
         return participants.stream()

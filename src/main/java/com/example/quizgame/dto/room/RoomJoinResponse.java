@@ -1,9 +1,11 @@
 package com.example.quizgame.dto.room;
 
 import com.example.quizgame.entity.Room;
+import com.example.quizgame.entity.RoomParticipant;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -20,8 +22,9 @@ public class RoomJoinResponse {
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
     private boolean isStarted;
+    List<ParticipantDTO> participants;
 
-    public static RoomJoinResponse from(Room room, String clientSessionId) {
+    public static RoomJoinResponse from(Room room, String clientSessionId, List<ParticipantDTO> participants) {
         return RoomJoinResponse.builder()
                 .roomId(room.getId())
                 .pinCode(room.getPinCode())
@@ -32,6 +35,7 @@ public class RoomJoinResponse {
                 .startedAt(room.getStartedAt())
                 .endedAt(room.getEndedAt())
                 .isStarted(room.getStartedAt() != null)
+                .participants(participants)
                 .build();
     }
 }

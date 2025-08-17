@@ -61,7 +61,19 @@ public class RoomParticipantRedisService {
     public AnswerResult getAnswer(String pinCode, Long questionId, String clientSessionId) {
         String redisKey = getRedisKey(pinCode, questionId);
         Object result = redisTemplate.opsForHash().get(redisKey, clientSessionId);
-        return result != null ? (AnswerResult) result : null;
+        
+        if (result == null) {
+            return null;
+        }
+        
+        if (result instanceof LinkedHashMap) {
+            // Deserialize manually from LinkedHashMap
+            return objectMapper.convertValue(result, AnswerResult.class);
+        } else if (result instanceof AnswerResult) {
+            return (AnswerResult) result;
+        } else {
+            throw new IllegalStateException("Unsupported value type in Redis: " + result.getClass());
+        }
     }
 
     public void setExpire(String pinCode, Long questionId, long duration, TimeUnit unit) {
@@ -95,7 +107,16 @@ public class RoomParticipantRedisService {
         String key = getHistoryRoomParticipantKey(pinCode, clientSessionId);
         List<Object> rawList = redisTemplate.opsForList().range(key, 0, -1);
         return rawList.stream()
-                .map(obj -> (AnswerResult) obj)
+                .map(obj -> {
+                    if (obj instanceof LinkedHashMap) {
+                        // Deserialize manually from LinkedHashMap
+                        return objectMapper.convertValue(obj, AnswerResult.class);
+                    } else if (obj instanceof AnswerResult) {
+                        return (AnswerResult) obj;
+                    } else {
+                        throw new IllegalStateException("Unsupported value type in Redis history: " + obj.getClass());
+                    }
+                })
                 .collect(Collectors.toList());
     }
 
