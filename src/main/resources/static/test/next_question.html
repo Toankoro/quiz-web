@@ -26,7 +26,7 @@
         let sessionId = null;
 
         function connect() {
-            const socket = new SockJS('http://localhost:8080/ws'); // Adjust if your websocket endpoint is different
+            const socket = new SockJS('http://localhost:8080/ws');
             stompClient = Stomp.over(socket);
             stompClient.connect({}, function(frame) {
                 console.log('Connected: ' + frame);

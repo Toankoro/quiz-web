@@ -71,7 +71,9 @@ public class SupportCardService {
         questionRedisService.setQuizIdByPinCode(pinCode, quizId);
         questionRedisService.setCurrentQuestionIndex(pinCode, 0);
         questionRedisService.setCurrentQuestionId(pinCode, null);
-        roomParticipantRedisService.deleteAnswerHistory(pinCode, clientSessionId);
+        roomParticipantRedisService.deleteAllHistoryOfRoom(pinCode);
+        questionRedisService.clearQuestionsCache(quizId);
+        roomParticipantRedisService.keepOnlyHost(pinCode);
         questionRedisService.getQuestionsByQuizId(quizId).forEach(question -> roomParticipantRedisService.deleteAnswers(pinCode, question.getId()));
     }
 }

@@ -20,13 +20,13 @@
   <textarea id="token" rows="3" placeholder="Paste JWT token here"></textarea><br>
 
   <label>Room ID:</label><br>
-  <input type="number" id="roomId" value="1"><br>
+  <input type="number" id="roomId" value="6"><br>
 
   <label>Pin Code:</label><br>
-  <input type="text" id="pinCode" value="DJVKQB"><br>
+  <input type="text" id="pinCode" value="NBDJJ7"><br>
 
   <label>Client Session ID:</label><br>
-  <input type="text" id="clientSessionId" value="7d2a3643-252d-4ca8-bd1d-782a130c2e1c"><br><br>
+  <input type="text" id="clientSessionId" value="22616c1a-de17-4c15-9857-735702f04539"><br><br>
 
   <button onclick="connectWebSocket()">Connect WebSocket</button>
   <button onclick="startRoom()">Start Room</button>
@@ -46,11 +46,12 @@
     function connectWebSocket() {
       const roomId = document.getElementById("roomId").value;
       const sessionId = document.getElementById("clientSessionId").value;
+      const pinCode = document.getElementById("pinCode").value;
 
       const socket = new SockJS("http://localhost:8080/ws");
       stompClient = Stomp.over(socket);
 
-      stompClient.connect({ clientSessionId: sessionId }, function () {
+      stompClient.connect({ clientSessionId: sessionId, pinCode: pinCode }, function () {
         logMessage("✅ Connected WebSocket");
 
         // Subscribe topic room start

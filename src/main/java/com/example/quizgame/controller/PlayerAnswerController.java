@@ -1,14 +1,15 @@
 package com.example.quizgame.controller;
 
 import com.example.quizgame.dto.answer.AnswerResult;
+import com.example.quizgame.dto.answer.HistoryDetailDTO;
+import com.example.quizgame.dto.answer.HistorySummaryDTO;
+import com.example.quizgame.dto.chat.CustomUserDetails;
 import com.example.quizgame.service.PlayerAnswerService;
 import com.example.quizgame.service.redis.RoomParticipantRedisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -36,5 +37,31 @@ public class PlayerAnswerController {
 
 
         return ResponseEntity.ok("Lưu lịch sử thành công");
+    }
+
+    // summary history
+    @GetMapping("/summary")
+    public ResponseEntity<List<HistorySummaryDTO>> getHistorySummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = userDetails.getId();
+        return ResponseEntity.ok(playerAnswerService.getHistorySummary(userId));
+    }
+
+    // detail history play of user
+    @GetMapping("/detail/{roomId}")
+    public ResponseEntity<List<HistoryDetailDTO>> getHistoryDetail(
+            @PathVariable Long roomId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = userDetails.getId();
+        return ResponseEntity.ok(playerAnswerService.getHistoryDetail(userId, roomId));
+    }
+
+    @DeleteMapping("/{roomId}")
+    public ResponseEntity<String> deleteHistory(
+            @PathVariable Long roomId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = userDetails.getId();
+        playerAnswerService.deleteUserHistory(userId, roomId);
+        return ResponseEntity.ok("Xóa lịch sử thành công");
     }
 }
