@@ -4,10 +4,8 @@ import com.example.quizgame.dto.answer.AnswerMessage;
 import com.example.quizgame.dto.question.QuestionResponseToParticipant;
 import com.example.quizgame.dto.answer.AnswerResult;
 import com.example.quizgame.dto.question.QuestionResponse;
-import com.example.quizgame.dto.question.ReconnectResponse;
 import com.example.quizgame.dto.supportcard.SupportCardType;
 import com.example.quizgame.entity.*;
-import com.example.quizgame.reponsitory.GameRankingRepository;
 import com.example.quizgame.reponsitory.QuestionRepository;
 import com.example.quizgame.reponsitory.RoomParticipantRepository;
 import com.example.quizgame.reponsitory.RoomRepository;
@@ -39,18 +37,14 @@ public class QuestionService {
         Long questionId = questionRedisService.getCurrentQuestionId(pinCode);
         Long quizId = questionRedisService.getQuizIdByPinCode(pinCode);
         QuestionResponse question = questionRedisService.getQuestionById(quizId, questionId);
-        
+
         if (question == null) {
             return null;
         }
 
-        Room room;
-        try {
-            room = roomRepository.findByPinCode(pinCode).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với pinCode"));
-        } catch (NoSuchElementException e) {
-            return null;
-        }
-        
+        Room room = roomRepository.findByPinCode(pinCode)
+                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng với pinCode"));
+
         RoomParticipant roomParticipant = roomParticipantRepository
                 .findByRoom_PinCodeAndUser_Username(pinCode, user.getUsername())
                 .orElse(null);
@@ -59,9 +53,16 @@ public class QuestionService {
             return null;
         }
 
-        int baseTimeLimit = 10000;
-        int baseScore = question.getScore() != null ? question.getScore() : 200;
-        float timeTaken = message.getTimeTaken() != null ? message.getTimeTaken() : baseTimeLimit;
+        Long startTime = questionRedisService.getQuestionStartTime(pinCode, questionId);
+        if (startTime == null) {
+            throw new IllegalStateException("Không tìm thấy thời gian bắt đầu cho câu hỏi này");
+        }
+
+        long currentTime = System.currentTimeMillis();
+        long timeTaken = currentTime - startTime;
+
+        int baseTimeLimit = (question.getLimitedTime() != null ? question.getLimitedTime() : 20) * 1000;
+        int baseScore = (question.getScore() != null ? question.getScore() : 200);
 
         String selectedAnswer = message.getSelectedAnswer();
         boolean isCorrect = selectedAnswer != null &&
@@ -69,6 +70,7 @@ public class QuestionService {
 
         int score = isCorrect ? calculateScore(timeTaken, baseTimeLimit, baseScore) : 0;
 
+        // ✅ Check card effects
         SupportCardType usedCard = questionRedisService.getUsedCardForQuestion(
                 pinCode,
                 message.getClientSessionId(),
@@ -98,23 +100,19 @@ public class QuestionService {
                 timeTaken,
                 question.getCorrectAnswer()
         );
-
         roomParticipantRedisService.saveAnswer(pinCode, questionId, message.getClientSessionId(), temp);
 
         // send result to participant
         AnswerResult result = new AnswerResult(
-            questionId,
-            message.getClientSessionId(),
-            roomParticipant.getId(),
-            message.getSelectedAnswer(),
-            score,
-            isCorrect,
-            timeTaken,
-            question.getCorrectAnswer()
+                questionId,
+                message.getClientSessionId(),
+                roomParticipant.getId(),
+                message.getSelectedAnswer(),
+                score,
+                isCorrect,
+                timeTaken,
+                question.getCorrectAnswer()
         );
-        
-        // THÊM: Set correctAnswer để frontend biết đáp án đúng
-        result.setCorrectAnswer(question.getCorrectAnswer());
 
         roomParticipantRedisService.saveAnswerHistory(pinCode, result.getClientSessionId(), result);
         messagingTemplate.convertAndSendToUser(
@@ -122,13 +120,12 @@ public class QuestionService {
                 "/queue/answer-result",
                 result
         );
+
         gameRankingService.addScoreAndCorrect(room, user, result.getScore());
         return result;
-
     }
 
-
-    private int calculateScore(float timeTakenMillis, int timeLimitMillis, int maxScore) {
+    private int calculateScore(long timeTakenMillis, int timeLimitMillis, int maxScore) {
         if (timeTakenMillis > timeLimitMillis) {
             return 0;
         }
@@ -136,6 +133,7 @@ public class QuestionService {
         ratio = Math.max(0.1, ratio);
         return (int) (maxScore * ratio);
     }
+
 
     public QuestionResponseToParticipant sendNextQuestion(String pinCode, String clientSessionId) {
         Long quizId = questionRedisService.getQuizIdByPinCode(pinCode);
@@ -146,9 +144,7 @@ public class QuestionService {
         int currentIndex = questionRedisService.getCurrentQuestionIndex(pinCode);
         if (currentIndex >= questions.size()) return null;
 
-        // Sửa: Chỉ lấy câu hỏi tiếp theo, không lấy câu hỏi đầu tiên
         if (currentIndex == 0) {
-            // Nếu đang ở câu hỏi đầu tiên, tăng index lên 1 để lấy câu hỏi thứ 2
             currentIndex = 1;
             questionRedisService.setCurrentQuestionIndex(pinCode, currentIndex);
         }
@@ -196,7 +192,7 @@ public class QuestionService {
                          null,
                          0,
                          false,
-                         Float.parseFloat(question.getLimitedTime().toString()),
+                         Long.parseLong(question.getLimitedTime().toString()),
                          question.getCorrectAnswer()
                  );
 
@@ -250,26 +246,6 @@ public class QuestionService {
         }
 
         return clone;
-    }
-
-    public ReconnectResponse handleReconnect(String pinCode, String clientSessionId) {
-        Long currentQuestionId = questionRedisService.getCurrentQuestionId(pinCode);
-        if (currentQuestionId == null) {
-            return ReconnectResponse.noCurrentQuestion(clientSessionId);
-        }
-        Question question = questionRepository.findById(currentQuestionId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy câu hỏi"));
-//        boolean hasAnswered = roomParticipantRedisService.hasAnswered(pinCode, clientSessionId, currentQuestionId);
-        long startTime = questionRedisService.getQuestionStartTime(pinCode, currentQuestionId);
-        return new ReconnectResponse(
-                clientSessionId,
-                currentQuestionId,
-                question.getContent(),
-                List.of(question.getAnswerA(), question.getAnswerB(), question.getAnswerC(), question.getAnswerD()),
-                startTime,
-                question.getLimitedTime(),
-                false
-        );
     }
 
 }

@@ -21,6 +21,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 @Controller
@@ -30,6 +31,8 @@ public class QuestionController {
     private final SimpMessagingTemplate messagingTemplate;
     private final RoomService roomService;
     private final RoomRepository roomRepository;
+    private final RoomParticipantRedisService roomParticipantRedisService;
+    private final QuestionRedisService questionRedisService;
 
     @PostMapping("/room/{pinCode}/submit-answer")
     public ResponseEntity<AnswerResult> submitAnswer(
@@ -60,33 +63,40 @@ public class QuestionController {
     @PostMapping("/{pinCode}/next-question")
     public ResponseEntity<?> nextQuestion(
             @PathVariable String pinCode,
-            @RequestBody ClientSessionRequest nextQuestionMessage,
-            @AuthenticationPrincipal CustomUserDetails userDetails ) {
-        Room roomDB = roomRepository.findByPinCode(pinCode).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng với phù hợp với pinCode đang tham gia !"));
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        Room roomDB = roomRepository.findByPinCode(pinCode)
+                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng với pinCode này!"));
+
         if (!roomService.isHostRoom(roomDB.getId(), userDetails.getUser())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body("Người dùng không phải chủ phòng");
         }
-        QuestionResponseToParticipant next = questionService.sendNextQuestion(pinCode, nextQuestionMessage.getClientSessionId());
+
+        Map<Object, Object> allSessions = roomParticipantRedisService.getAllSessions(pinCode);
+        if (allSessions == null || allSessions.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Phòng chưa có người chơi nào!");
+        }
+
+        QuestionResponseToParticipant next = questionService.sendNextQuestion(pinCode, null);
+
         if (next != null) {
-            messagingTemplate.convertAndSendToUser(
-                    nextQuestionMessage.getClientSessionId(),
-                    "/queue/next-question",
-                    next
-            );
+            long deadline = System.currentTimeMillis() + next.getLimitedTime() * 1000;
+            questionRedisService.setQuestionDeadline(pinCode, next.getId(), deadline);
+            questionRedisService.setQuestionStartTime(pinCode, next.getId(), next.getLimitedTime() * 10000);
+            allSessions.keySet().forEach(sessionId -> {
+                messagingTemplate.convertAndSendToUser(
+                        sessionId.toString(),
+                        "/queue/next-question",
+                        next
+                );
+            });
             return ResponseEntity.ok(next);
         } else {
             questionService.sendGameOver(pinCode);
             return ResponseEntity.noContent().build();
         }
     }
-
-
-    @GetMapping("/reconnect")
-    public ResponseEntity<ReconnectResponse> reconnect(@RequestParam String pinCode, @RequestParam String clientSessionId) {
-        ReconnectResponse response = questionService.handleReconnect(pinCode, clientSessionId);
-        return ResponseEntity.ok(response);
-    }
-
 
 }

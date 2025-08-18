@@ -46,7 +46,7 @@ public class QuizService {
         List<Question> questions = request.getQuestions().stream().map(qr -> {
             Question q = new Question();
             q.setContent(qr.getContent());
-            q.setDescription(qr.getDescription()); //thêm mới 
+            q.setDescription(qr.getDescription());
             q.setAnswerA(qr.getAnswerA());
             q.setAnswerB(qr.getAnswerB());
             q.setAnswerC(qr.getAnswerC());
@@ -247,7 +247,7 @@ public class QuizService {
             request.getQuestions().forEach(q -> {
                 Question question = new Question();
                 question.setContent(q.getContent());
-                question.setDescription(q.getDescription());// thêm mới 
+                question.setDescription(q.getDescription());// thêm mới
                 question.setAnswerA(q.getAnswerA());
                 question.setAnswerB(q.getAnswerB());
                 question.setAnswerC(q.getAnswerC());

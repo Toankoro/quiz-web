@@ -1,15 +1,16 @@
 package com.example.quizgame.service;
 
 import com.example.quizgame.dto.answer.AnswerResult;
+import com.example.quizgame.dto.answer.HistoryDetailDTO;
+import com.example.quizgame.dto.answer.HistorySummaryDTO;
 import com.example.quizgame.dto.question.QuestionResponse;
-import com.example.quizgame.entity.PlayerAnswer;
-import com.example.quizgame.entity.Question;
-import com.example.quizgame.entity.RoomParticipant;
+import com.example.quizgame.entity.*;
 import com.example.quizgame.reponsitory.PlayerAnswerRepository;
 import com.example.quizgame.reponsitory.QuestionRepository;
 import com.example.quizgame.reponsitory.RoomParticipantRepository;
 import com.example.quizgame.service.redis.QuestionRedisService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -99,7 +100,54 @@ public class PlayerAnswerService {
                 .build();
     }
 
+    public List<HistorySummaryDTO> getHistorySummary(Long userId) {
+        List<PlayerAnswer> answers = playerAnswerRepository.findByRoomParticipant_User_Id(userId);
 
+        return answers.stream()
+                .collect(Collectors.groupingBy(pa -> pa.getRoomParticipant().getRoom().getId()))
+                .entrySet()
+                .stream()
+                .map(entry -> {
+                    Long roomId = entry.getKey();
+                    List<PlayerAnswer> playerAnswers = entry.getValue();
+
+                    RoomParticipant participant = playerAnswers.get(0).getRoomParticipant();
+                    Room room = participant.getRoom();
+                    Quiz quiz = room.getQuiz();
+
+                    return HistorySummaryDTO.builder()
+                            .roomId(roomId)
+                            .quizTitle(quiz.getTopic())
+                            .lessonName(quiz.getDescription())
+                            .questionCount(playerAnswers.size())
+                            .totalScore(playerAnswers.stream().mapToInt(a -> a.getScore() != null ? a.getScore() : 0).sum())
+                            .playedAt(room.getCreatedAt()) // giả sử Room có createdAt
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+
+    public List<HistoryDetailDTO> getHistoryDetail(Long userId, Long roomId) {
+        List<PlayerAnswer> answers = playerAnswerRepository
+                .findByRoomParticipant_User_IdAndRoomParticipant_Room_Id(userId, roomId);
+
+        return answers.stream()
+                .map(pa -> HistoryDetailDTO.builder()
+                        .questionId(pa.getQuestion().getId())
+                        .questionContent(pa.getQuestion().getContent())
+                        .selectedAnswer(pa.getSelectedAnswer())
+                        .correct(pa.isCorrect())
+                        .score(pa.getScore())
+                        .correctAnswer(pa.getQuestion().getCorrectAnswer())
+                        .explanation(pa.getQuestion().getDescription())
+                        .build()
+                ).collect(Collectors.toList());
+    }
+    @Transactional
+    public void deleteUserHistory(Long userId, Long roomId) {
+        playerAnswerRepository.deleteByRoomParticipant_User_IdAndRoomParticipant_Room_Id(userId, roomId);
+    }
 
 
 }
