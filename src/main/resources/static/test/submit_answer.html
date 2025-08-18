@@ -52,7 +52,6 @@
   <h3>📤 Submit Answer</h3>
   <label>Client Session ID: <input type="text" id="sessionId"></label>
   <label>Selected Answer: <input type="text" id="selectedAnswer" value="35"></label>
-  <label>Time Taken (ms): <input type="number" id="timeTaken" value="5"></label>
   <button onclick="submitAnswer()">Submit Answer</button>
 
   <h3>WebSocket Messages:</h3>
@@ -129,7 +128,6 @@ async function connectAndJoin() {
 function submitAnswer() {
   const sessionId = document.getElementById("sessionId").value;
   const selectedAnswer = document.getElementById("selectedAnswer").value;
-  const timeTaken = parseInt(document.getElementById("timeTaken").value);
   const token = document.getElementById("token").value.trim();
 
   if (!token || !sessionId || !currentPin) {
@@ -139,7 +137,6 @@ function submitAnswer() {
 
   const answerBody = {
     selectedAnswer,
-    timeTaken,
     clientSessionId: sessionId
   };
 
