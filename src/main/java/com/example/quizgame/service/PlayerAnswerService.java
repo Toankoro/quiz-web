@@ -115,13 +115,17 @@ public class PlayerAnswerService {
                     Room room = participant.getRoom();
                     Quiz quiz = room.getQuiz();
 
+                    // Debug lần cuối
+                    System.out.println("FINAL DEBUG - Quiz Description: '" + quiz.getDescription() + "'");
+                    System.out.println("FINAL DEBUG - Quiz Description type: " + (quiz.getDescription() != null ? quiz.getDescription().getClass() : "null"));
+
                     return HistorySummaryDTO.builder()
                             .roomId(roomId)
                             .quizTitle(quiz.getTopic())
                             .lessonName(quiz.getDescription())
                             .questionCount(playerAnswers.size())
                             .totalScore(playerAnswers.stream().mapToInt(a -> a.getScore() != null ? a.getScore() : 0).sum())
-                            .playedAt(room.getCreatedAt()) // giả sử Room có createdAt
+                            .playedAt(room.getCreatedAt())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -136,6 +140,10 @@ public class PlayerAnswerService {
                 .map(pa -> HistoryDetailDTO.builder()
                         .questionId(pa.getQuestion().getId())
                         .questionContent(pa.getQuestion().getContent())
+                        .answerA(pa.getQuestion().getAnswerA())
+                        .answerB(pa.getQuestion().getAnswerB())
+                        .answerC(pa.getQuestion().getAnswerC())
+                        .answerD(pa.getQuestion().getAnswerD())
                         .selectedAnswer(pa.getSelectedAnswer())
                         .correct(pa.isCorrect())
                         .score(pa.getScore())

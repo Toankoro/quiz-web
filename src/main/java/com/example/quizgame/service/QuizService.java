@@ -40,6 +40,7 @@ public class QuizService {
         quiz.setVisibleTo(request.isVisibleTo());
         quiz.setImageUrl(request.getImageUrl());
         quiz.setName(request.getName());
+        quiz.setDescription(request.getDescription()); // Thêm dòng này
         quiz.setCreatedBy(user);
         quiz.setCreatedAt(LocalDateTime.now());
 

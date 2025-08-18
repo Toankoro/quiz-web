@@ -15,6 +15,7 @@ public class RoomResponse {
     private String pinCode;
     private String qrCodeUrl;
     private String quizTitle;
+    private String clientSessionId; // Thêm field này
     private LocalDateTime createdAt;
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
