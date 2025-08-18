@@ -4,6 +4,7 @@ import com.example.quizgame.dto.answer.AnswerResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +14,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RoomParticipantRedisService {
 
     private final RedisTemplate<String, Object> redisTemplate;
@@ -93,6 +95,19 @@ public class RoomParticipantRedisService {
 
 
     // history answer pinCode of participant
+
+    public void deleteAllHistoryOfRoom(String pinCode) {
+        String pattern = "history:" + pinCode + ":*";
+        Set<String> keys = redisTemplate.keys(pattern);
+
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+            log.info("Đã xóa {} lịch sử trong phòng {}", keys.size(), pinCode);
+        } else {
+            log.info("Không có lịch sử nào để xóa trong phòng {}", pinCode);
+        }
+    }
+
     public void deleteAnswerHistory(String pinCode, String clientSessionId) {
         String key = getHistoryRoomParticipantKey(pinCode, clientSessionId);
         redisTemplate.delete(key);
@@ -138,11 +153,41 @@ public class RoomParticipantRedisService {
         String clientSessionId = UUID.randomUUID().toString();
         String hashKey = getSessionHashKey(pinCode);
 
+        Map<Object, Object> existingSessions = redisTemplate.opsForHash().entries(hashKey);
+        existingSessions.forEach((sessionId, user) -> {
+            if (username.equals(user.toString())) {
+                redisTemplate.opsForHash().delete(hashKey, sessionId);
+            }
+        });
+
+        // Lưu session mới
         redisTemplate.opsForHash().put(hashKey, clientSessionId, username);
         redisTemplate.expire(hashKey, EXPIRATION_DAYS, TimeUnit.DAYS);
 
         return clientSessionId;
     }
+
+
+    public void keepOnlyHost(String pinCode) {
+        String hashKey = getSessionHashKey(pinCode);
+        Map<Object, Object> sessions = redisTemplate.opsForHash().entries(hashKey);
+
+        if (sessions.isEmpty()) {
+            return;
+        }
+
+        String hostSessionId = sessions.keySet().iterator().next().toString();
+
+        for (Object sessionId : sessions.keySet()) {
+            if (!sessionId.toString().equals(hostSessionId)) {
+                redisTemplate.opsForHash().delete(hashKey, sessionId);
+            }
+        }
+
+        log.info("Giữ lại host sessionId={}, đã xóa {} session khác",
+                hostSessionId, sessions.size() - 1);
+    }
+
 
     public Map<Object, Object> getAllSessions(String roomCode) {
         String hashKey = getSessionHashKey(roomCode);
@@ -155,6 +200,15 @@ public class RoomParticipantRedisService {
                 .stream().map(Object::toString)
                 .collect(Collectors.toSet());
     }
+
+    public boolean isValidClientSession(String pinCode, String clientSessionId) {
+        String hashKey = getSessionHashKey(pinCode);
+        Map<Object, Object> all = redisTemplate.opsForHash().entries(hashKey);
+        log.info("Redis data for room {} = {}", pinCode, all);
+        log.info("Check sessionId={} exist? {}", clientSessionId, all.containsKey(clientSessionId));
+        return Boolean.TRUE.equals(redisTemplate.opsForHash().hasKey(hashKey, clientSessionId));
+    }
+
 
     public void removeClientSession(String pinCode, String clientSessionId) {
         String hashKey = getSessionHashKey(pinCode);

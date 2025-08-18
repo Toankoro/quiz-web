@@ -14,6 +14,7 @@ import com.example.quizgame.service.redis.QuestionRedisService;
 import com.example.quizgame.service.redis.RoomParticipantRedisService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -26,6 +27,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RoomService {
@@ -64,10 +66,10 @@ public class RoomService {
         participant.setRoom(savedRoom);
         participant.setUser(host);
         participant.setHost(true);
-
-        // Lưu participant vào database
-        participantRepo.save(participant);
         participant.setClientSessionId(clientSessionId);
+
+        participantRepo.save(participant);
+
 
         room.getParticipants().add(participant);
 
@@ -149,9 +151,9 @@ public class RoomService {
 
 
         boolean isQuestionLast = currentIndex == (questions.size() - 1);
-        QuestionResponseToParticipant firstQuestion = QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(0), isQuestionLast);
-        messagingTemplate.convertAndSend("/topic/room/" + roomId, firstQuestion);
 
+        log.info(">>> SEND FIRST QUESTION: roomId={}, questionId={}, question='{}'",
+                roomId, QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(currentIndex), isQuestionLast).getId(), QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(currentIndex), isQuestionLast).getContent());
         messagingTemplate.convertAndSend("/topic/room/" + roomId, QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(currentIndex), isQuestionLast));
 
         // Trả về danh sách người chơi KHÔNG phải host

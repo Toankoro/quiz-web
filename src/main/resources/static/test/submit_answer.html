@@ -2,33 +2,57 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Join Room & Submit Answer</title>
+  <title>Join Room & Play Quiz</title>
   <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h2, h3 { margin-top: 20px; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+    label { display: block; margin-top: 10px; }
+    button { margin-top: 10px; padding: 6px 12px; }
+  </style>
 </head>
 <body>
-  <h2>🎯 Join Room & Submit Answer</h2>
+  <h2>🎯 Join Room & Play Quiz</h2>
 
   <!-- Thông tin để join -->
-  <label>PIN Code: <input type="text" id="pin" placeholder="Nhập mã PIN"></label><br>
+  <label>PIN Code: <input type="text" id="pin" placeholder="Nhập mã PIN"></label>
   <label>Token (JWT):<br>
     <textarea id="token" rows="3" cols="80" placeholder="Bearer token..."></textarea>
-  </label><br><br>
+  </label>
+  <label>Room ID: <input type="number" id="roomId" value="6"></label>
   <button onclick="connectAndJoin()">Join Room</button>
+  <label>Client Session ID: <input type="text" id="clientSessionId" readonly></label>
 
   <h3>Kết quả Join:</h3>
-  <pre id="joinResult"></pre>
+  <pre id="joinResult">Chưa join</pre>
 
   <h3>Danh sách người chơi:</h3>
   <ul id="participant-list"></ul>
 
   <hr>
 
+  <!-- Form dùng Support Card -->
+  <h3>🃏 Dùng Support Card</h3>
+  <label>Chọn thẻ:</label>
+  <select id="supportCardType">
+    <option value="RETRY_ANSWER">🔄 Retry Answer</option>
+    <option value="HIDE_ANSWER">🙈 Hide Answer</option>
+    <option value="DOUBLE_SCORE">✨ Double Score</option>
+  </select>
+  <button onclick="useSupportCard()">Use Card</button>
+
+  <h3>Kết quả dùng thẻ:</h3>
+  <pre id="supportCardResult">Chưa dùng thẻ nào...</pre>
+
+  <hr>
+
   <!-- Form submit answer -->
   <h3>📤 Submit Answer</h3>
-  <label>Client Session ID: <input type="text" id="sessionId"></label><br>
-  <label>Selected Answer: <input type="text" id="selectedAnswer" value="35"></label><br>
-  <label>Time Taken (ms): <input type="number" id="timeTaken" value="5"></label><br>
+  <label>Client Session ID: <input type="text" id="sessionId"></label>
+  <label>Selected Answer: <input type="text" id="selectedAnswer" value="35"></label>
+  <label>Time Taken (ms): <input type="number" id="timeTaken" value="5"></label>
   <button onclick="submitAnswer()">Submit Answer</button>
 
   <h3>WebSocket Messages:</h3>
@@ -40,7 +64,7 @@ let clientSessionId = null;
 let currentRoomId = null;
 let currentPin = null;
 
-function connectAndJoin() {
+async function connectAndJoin() {
   const pin = document.getElementById("pin").value.trim();
   const token = document.getElementById("token").value.trim();
   const resultBox = document.getElementById("joinResult");
@@ -50,70 +74,52 @@ function connectAndJoin() {
     return;
   }
 
-  currentPin = pin;
-
-  const socket = new SockJS('http://localhost:8080/ws');
-  stompClient = Stomp.over(socket);
-
-  stompClient.connect({ clientSessionId: sessionId }, () => {
-    console.log("✅ WebSocket kết nối thành công");
-
-    // Subscribe cập nhật người chơi
-    stompClient.subscribe(`/topic/room/${pin}`, (message) => {
-      try {
-        const participants = JSON.parse(message.body);
-        updateParticipantListUI(participants);
-      } catch (e) {
-        appendMessage("Room Broadcast:\n" + message.body);
-      }
-    });
-
-    // Subscribe các kênh khác
-    stompClient.subscribe('/user/queue/answer-result', (message) => {
-      appendMessage("Answer Result:\n" + message.body);
-    });
-
-    stompClient.subscribe('/user/queue/next-question', (message) => {
-      appendMessage("Next Question:\n" + message.body);
-    });
-
-    console.log("✅ Subscribed các kênh cần thiết");
-
-    // Sau khi WS connect → gọi API join
-    joinRoomAPI(pin, token);
-  }, (error) => {
-    console.error("❌ WebSocket lỗi:", error);
-    resultBox.textContent = "❌ Không thể kết nối WebSocket";
-  });
-}
-
-async function joinRoomAPI(pin, token) {
-  const resultBox = document.getElementById("joinResult");
-
   try {
+    // 1️⃣ Gọi API join
     const response = await fetch(`http://localhost:8080/rooms/join?pin=${pin}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
-        'Authorization': `Bearer ${token}`
+        "Authorization": `Bearer ${token}`
       }
     });
 
-    const rawText = await response.text();
-
-    if (!response.ok) {
-      throw new Error(rawText || "Tham gia thất bại");
-    }
-
-    const data = JSON.parse(rawText);
-    resultBox.textContent = JSON.stringify(data, null, 2);
+    const data = await response.json();
+    console.log("Join API response:", data);
 
     clientSessionId = data.clientSessionId;
-    currentRoomId = data.roomId; // backend cần trả roomId khi join
+    currentRoomId = data.roomId;
+    currentPin = pin;
+
+    document.getElementById("clientSessionId").value = clientSessionId;
     document.getElementById("sessionId").value = clientSessionId;
+    resultBox.textContent = JSON.stringify(data, null, 2);
 
-    appendMessage(`Joined Room ${pin} thành công. Session: ${clientSessionId}`);
+    // 2️⃣ Kết nối WebSocket
+    const socket = new SockJS('http://localhost:8080/ws');
+    stompClient = Stomp.over(socket);
 
+    stompClient.connect({ clientSessionId, pinCode: pin }, () => {
+      console.log("✅ WebSocket kết nối thành công");
+
+      // Nhận broadcast của phòng
+      stompClient.subscribe(`/topic/room/${currentRoomId}`, (msg) => {
+        console.log("📩 Room Broadcast:", msg.body);
+        appendMessage("Room Broadcast:\n" + msg.body);
+      });
+
+      // Nhận câu hỏi riêng cho client
+      stompClient.subscribe("/user/queue/next-question", (msg) => {
+        console.log("📩 Next Question:", msg.body);
+        appendMessage("Next Question:\n" + msg.body);
+        try {
+          const question = JSON.parse(msg.body);
+          renderQuestion(question);
+        } catch (e) {
+          console.error("Không parse được câu hỏi:", e);
+        }
+      });
+    });
   } catch (error) {
     resultBox.textContent = `❌ Lỗi: ${error.message}`;
     console.error(error);
@@ -132,8 +138,8 @@ function submitAnswer() {
   }
 
   const answerBody = {
-    selectedAnswer: selectedAnswer,
-    timeTaken: timeTaken,
+    selectedAnswer,
+    timeTaken,
     clientSessionId: sessionId
   };
 
@@ -161,6 +167,47 @@ function submitAnswer() {
   });
 }
 
+function useSupportCard() {
+  const token = document.getElementById("token").value.trim();
+  const sessionId = document.getElementById("sessionId").value;
+  const cardType = document.getElementById("supportCardType").value;
+
+  if (!token || !sessionId || !currentPin) {
+    alert("⚠️ Cần join room trước khi dùng thẻ!");
+    return;
+  }
+
+  const body = {
+    clientSessionId: sessionId,
+    cardType: cardType
+  };
+
+  fetch(`http://localhost:8080/${currentPin}/support-card`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(body)
+  })
+  .then(response => {
+    if (!response.ok) {
+      return response.text().then(text => { throw new Error(text) });
+    }
+    return response.json();
+  })
+  .then(data => {
+    console.log("Support Card API Response:", data);
+    document.getElementById("supportCardResult").textContent =
+      JSON.stringify(data, null, 2);
+    appendMessage("Dùng thẻ " + cardType + " thành công");
+  })
+  .catch(err => {
+    console.error("Support Card API Error:", err.message);
+    alert("API Error: " + err.message);
+  });
+}
+
 function appendMessage(text) {
   const wsBox = document.getElementById('wsMessages');
   wsBox.textContent += "\n\n" + text;
@@ -174,6 +221,11 @@ function updateParticipantListUI(participants) {
     li.textContent = p.firstname ? `${p.firstname} (${p.id})` : p;
     list.appendChild(li);
   });
+}
+
+function renderQuestion(question) {
+  console.log("Render câu hỏi:", question);
+  appendMessage("Render Question:\n" + JSON.stringify(question, null, 2));
 }
 </script>
 </body>

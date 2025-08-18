@@ -146,9 +146,7 @@ public class QuestionService {
         int currentIndex = questionRedisService.getCurrentQuestionIndex(pinCode);
         if (currentIndex >= questions.size()) return null;
 
-        // Sửa: Chỉ lấy câu hỏi tiếp theo, không lấy câu hỏi đầu tiên
         if (currentIndex == 0) {
-            // Nếu đang ở câu hỏi đầu tiên, tăng index lên 1 để lấy câu hỏi thứ 2
             currentIndex = 1;
             questionRedisService.setCurrentQuestionIndex(pinCode, currentIndex);
         }

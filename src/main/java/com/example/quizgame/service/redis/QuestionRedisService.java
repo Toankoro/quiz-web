@@ -204,6 +204,12 @@ public class QuestionRedisService {
         return questions;
     }
 
+    public void clearQuestionsCache(Long quizId) {
+        String redisKey = "quiz:" + quizId + ":questions:list";
+        redisTemplate.delete(redisKey);
+    }
+
+
 
     public QuestionResponse getQuestionById(Long quizId, Long questionId) {
         String redisKey = "quiz:" + quizId + ":questions:list";
@@ -239,8 +245,6 @@ public class QuestionRedisService {
 
         return response;
     }
-
-
 
 
     // set, get startTime for question
