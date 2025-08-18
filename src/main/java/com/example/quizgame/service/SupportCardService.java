@@ -8,11 +8,12 @@ import com.example.quizgame.exceptions.ConflictException;
 import com.example.quizgame.service.redis.QuestionRedisService;
 import com.example.quizgame.service.redis.RoomParticipantRedisService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SupportCardService {
@@ -35,6 +36,7 @@ public class SupportCardService {
         }
 
         Set<String> availableCards = questionRedisService.getAvailableCards(pinCode, clientSessionId);
+        log.info(">>> Available cards for {}: {}", clientSessionId, availableCards);
         if (!availableCards.contains(cardType.name())) {
             throw new BadRequestException("Thẻ không khả dụng hoặc đã sử dụng.");
         }
@@ -47,6 +49,11 @@ public class SupportCardService {
             }
             if (existingAnswer.isCorrect()) {
                 throw new BadRequestException("Bạn đã trả lời đúng. Không thể sử dụng thẻ này.");
+            }
+
+            Long deadline = questionRedisService.getQuestionDeadline(pinCode, currentQuestionId);
+            if (deadline == null || System.currentTimeMillis() > deadline) {
+                throw new BadRequestException("Hết thời gian, không thể sử dụng thẻ retry.");
             }
             roomParticipantRedisService.deleteAnswerRoomParticipant(pinCode, currentQuestionId, clientSessionId);
         }
@@ -71,9 +78,9 @@ public class SupportCardService {
         questionRedisService.setQuizIdByPinCode(pinCode, quizId);
         questionRedisService.setCurrentQuestionIndex(pinCode, 0);
         questionRedisService.setCurrentQuestionId(pinCode, null);
-        roomParticipantRedisService.deleteAllHistoryOfRoom(pinCode);
         questionRedisService.clearQuestionsCache(quizId);
+        questionRedisService.deleteQuestionDeadline(pinCode);
+        roomParticipantRedisService.deleteAllHistoryOfRoom(pinCode);
         roomParticipantRedisService.keepOnlyHost(pinCode);
-        questionRedisService.getQuestionsByQuizId(quizId).forEach(question -> roomParticipantRedisService.deleteAnswers(pinCode, question.getId()));
     }
 }

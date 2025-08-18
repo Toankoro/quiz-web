@@ -32,6 +32,7 @@ public class QuestionController {
     private final RoomService roomService;
     private final RoomRepository roomRepository;
     private final RoomParticipantRedisService roomParticipantRedisService;
+    private final QuestionRedisService questionRedisService;
 
     @PostMapping("/room/{pinCode}/submit-answer")
     public ResponseEntity<AnswerResult> submitAnswer(
@@ -79,7 +80,11 @@ public class QuestionController {
         }
 
         QuestionResponseToParticipant next = questionService.sendNextQuestion(pinCode, null);
+
         if (next != null) {
+            long deadline = System.currentTimeMillis() + next.getLimitedTime() * 1000;
+            questionRedisService.setQuestionDeadline(pinCode, next.getId(), deadline);
+            questionRedisService.setQuestionStartTime(pinCode, next.getId(), next.getLimitedTime() * 10000);
             allSessions.keySet().forEach(sessionId -> {
                 messagingTemplate.convertAndSendToUser(
                         sessionId.toString(),
@@ -94,12 +99,4 @@ public class QuestionController {
         }
     }
 
-
-
-
-    @GetMapping("/reconnect")
-    public ResponseEntity<ReconnectResponse> reconnect(@RequestParam String pinCode, @RequestParam String clientSessionId) {
-        ReconnectResponse response = questionService.handleReconnect(pinCode, clientSessionId);
-        return ResponseEntity.ok(response);
-    }
 }
