@@ -74,7 +74,7 @@ public class RoomService {
 
         room.getParticipants().add(participant);
 
-        return RoomResponse.from(savedRoom);
+        return RoomResponse.from(savedRoom, clientSessionId);
     }
 
     public RoomJoinResponse joinRoom(String pin, User user) {
