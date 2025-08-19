@@ -31,9 +31,11 @@ public class QuestionResponseToParticipant {
                 .answerB(questionResponse.getAnswerB())
                 .answerC(questionResponse.getAnswerC())
                 .answerD(questionResponse.getAnswerD())
+                .imageUrl(questionResponse.getImageUrl())
                 .score(questionResponse.getScore())
                 .limitedTime(questionResponse.getLimitedTime() != null ? questionResponse.getLimitedTime() : 20)
                 .questionLast(questionLast)
+                .startTime(System.currentTimeMillis())
                 .build();
     }
 }
