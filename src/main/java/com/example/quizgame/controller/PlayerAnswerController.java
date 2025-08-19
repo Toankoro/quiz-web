@@ -35,7 +35,6 @@ public class PlayerAnswerController {
         playerAnswerService.saveAnswersFromHistory(pinCode, clientSessionId, history);
         roomParticipantRedisService.deleteAnswerHistory(pinCode, clientSessionId);
 
-
         return ResponseEntity.ok("Lưu lịch sử thành công");
     }
 
@@ -63,5 +62,12 @@ public class PlayerAnswerController {
         Long userId = userDetails.getId();
         playerAnswerService.deleteUserHistory(userId, roomId);
         return ResponseEntity.ok("Xóa lịch sử thành công");
+    }
+
+    // Endpoint để migrate dữ liệu cũ (chỉ dành cho admin)
+    @PostMapping("/migrate")
+    public ResponseEntity<String> migrateExistingData() {
+        playerAnswerService.migrateExistingData();
+        return ResponseEntity.ok("Migration hoàn thành");
     }
 }

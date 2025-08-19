@@ -1,115 +1,161 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Test Start Room & Next Question</title>
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 10px; }
-    pre { background: #f3f3f3; padding: 10px; border-radius: 5px; }
-    input, textarea { margin-bottom: 8px; width: 300px; }
-    button { margin-right: 10px; }
-  </style>
-</head>
-<body>
-  <h2>WebSocket & API Test</h2>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test Start Room & Next Question</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 10px;
+      }
+      pre {
+        background: #f3f3f3;
+        padding: 10px;
+        border-radius: 5px;
+      }
+      input,
+      textarea {
+        margin-bottom: 8px;
+        width: 300px;
+      }
+      button {
+        margin-right: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>WebSocket & API Test</h2>
 
-  <label>JWT Token:</label><br>
-  <textarea id="token" rows="3" placeholder="Paste JWT token here"></textarea><br>
+    <label>JWT Token:</label><br />
+    <textarea id="token" rows="3" placeholder="Paste JWT token here"></textarea
+    ><br />
 
-  <label>Room ID:</label><br>
-  <input type="number" id="roomId" value="6"><br>
+    <label>Room ID:</label><br />
+    <input type="number" id="roomId" value="6" /><br />
 
-  <label>Pin Code:</label><br>
-  <input type="text" id="pinCode" value="NBDJJ7"><br>
+    <label>Pin Code:</label><br />
+    <input type="text" id="pinCode" value="NBDJJ7" /><br />
 
-  <label>Client Session ID:</label><br>
-  <input type="text" id="clientSessionId" value="22616c1a-de17-4c15-9857-735702f04539"><br><br>
+    <label>Client Session ID:</label><br />
+    <input
+      type="text"
+      id="clientSessionId"
+      value="22616c1a-de17-4c15-9857-735702f04539"
+    /><br /><br />
 
-  <button onclick="connectWebSocket()">Connect WebSocket</button>
-  <button onclick="startRoom()">Start Room</button>
-  <button onclick="nextQuestion()">Next Question</button>
+    <button onclick="connectWebSocket()">Connect WebSocket</button>
+    <button onclick="startRoom()">Start Room</button>
+    <button onclick="nextQuestion()">Next Question</button>
 
-  <h3>Messages:</h3>
-  <pre id="messageBox">Not connected</pre>
+    <h3>Messages:</h3>
+    <pre id="messageBox">Not connected</pre>
 
-  <script>
-    let stompClient = null;
+    <script>
+      let stompClient = null;
 
-    function logMessage(msg) {
-      const box = document.getElementById("messageBox");
-      box.textContent += "\n\n" + msg;
-    }
+      function logMessage(msg) {
+        const box = document.getElementById("messageBox");
+        box.textContent += "\n\n" + msg;
+      }
 
-    function connectWebSocket() {
-      const roomId = document.getElementById("roomId").value;
-      const sessionId = document.getElementById("clientSessionId").value;
-      const pinCode = document.getElementById("pinCode").value;
+      function connectWebSocket() {
+        const roomId = document.getElementById("roomId").value;
+        const sessionId = document.getElementById("clientSessionId").value;
+        const pinCode = document.getElementById("pinCode").value;
 
-      const socket = new SockJS("http://localhost:8080/ws");
-      stompClient = Stomp.over(socket);
+        const socket = new SockJS("http://localhost:8080/ws");
+        stompClient = Stomp.over(socket);
 
-      stompClient.connect({ clientSessionId: sessionId, pinCode: pinCode }, function () {
-        logMessage("✅ Connected WebSocket");
+        stompClient.connect(
+          { clientSessionId: sessionId, pinCode: pinCode },
+          function () {
+            logMessage("✅ Connected WebSocket");
 
-        // Subscribe topic room start
-        stompClient.subscribe(`/topic/room/${roomId}`, function (message) {
-          logMessage(`📢 Topic /topic/room/${roomId}:\n${message.body}`);
-        });
+            // Subscribe topic room start
+            stompClient.subscribe(`/topic/room/${pinCode}`, function (message) {
+              logMessage(`📢 Topic /topic/room/${pinCode}:\n${message.body}`);
+            });
 
-        // Subscribe personal next-question
-        stompClient.subscribe("/user/queue/next-question", function (message) {
-          logMessage(`➡️ Next Question:\n${message.body}`);
-        });
+            // Subscribe personal next-question
+            stompClient.subscribe(
+              "/user/queue/next-question",
+              function (message) {
+                logMessage(`➡️ Next Question:\n${message.body}`);
+              }
+            );
 
-        // Subscribe answer result
-        stompClient.subscribe("/user/queue/answer-result", function (message) {
-          logMessage(`✅ Answer Result:\n${message.body}`);
-        });
+            // Subscribe answer result
+            stompClient.subscribe(
+              "/user/queue/answer-result",
+              function (message) {
+                logMessage(`✅ Answer Result:\n${message.body}`);
+              }
+            );
+          },
+          function (error) {
+            logMessage("❌ WebSocket connection error: " + error);
+          }
+        );
+      }
 
-      }, function (error) {
-        logMessage("❌ WebSocket connection error: " + error);
-      });
-    }
+      function startRoom() {
+        const roomId = document.getElementById("roomId").value;
+        const token = document.getElementById("token").value.trim();
 
-    function startRoom() {
-      const roomId = document.getElementById("roomId").value;
-      const token = document.getElementById("token").value.trim();
+        axios
+          .post(
+            `http://localhost:8080/rooms/start/${roomId}`,
+            {},
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          )
+          .then((res) => {
+            logMessage(
+              `🚀 Start Room Response:\n${JSON.stringify(res.data, null, 2)}`
+            );
+          })
+          .catch((err) => {
+            logMessage(`❌ Start Room Error:\n${err}`);
+          });
+      }
 
-      axios.post(`http://localhost:8080/rooms/start/${roomId}`, {}, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      })
-      .then(res => {
-        logMessage(`🚀 Start Room Response:\n${JSON.stringify(res.data, null, 2)}`);
-      })
-      .catch(err => {
-        logMessage(`❌ Start Room Error:\n${err}`);
-      });
-    }
+      function nextQuestion() {
+        const pinCode = document.getElementById("pinCode").value;
+        const clientSessionId =
+          document.getElementById("clientSessionId").value;
+        const token = document.getElementById("token").value.trim();
 
-    function nextQuestion() {
-      const pinCode = document.getElementById("pinCode").value;
-      const clientSessionId = document.getElementById("clientSessionId").value;
-      const token = document.getElementById("token").value.trim();
-
-      axios.post(`http://localhost:8080/${pinCode}/next-question`, {
-        clientSessionId: clientSessionId
-      }, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      })
-      .then(res => {
-        logMessage(`➡️ Next Question HTTP Response:\n${JSON.stringify(res.data, null, 2)}`);
-      })
-      .catch(err => {
-        logMessage(`❌ Next Question Error:\n${err}`);
-      });
-    }
-  </script>
-</body>
+        axios
+          .post(
+            `http://localhost:8080/${pinCode}/next-question`,
+            {
+              clientSessionId: clientSessionId,
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          )
+          .then((res) => {
+            logMessage(
+              `➡️ Next Question HTTP Response:\n${JSON.stringify(
+                res.data,
+                null,
+                2
+              )}`
+            );
+          })
+          .catch((err) => {
+            logMessage(`❌ Next Question Error:\n${err}`);
+          });
+      }
+    </script>
+  </body>
 </html>

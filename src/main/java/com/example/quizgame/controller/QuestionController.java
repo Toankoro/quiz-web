@@ -84,7 +84,7 @@ public class QuestionController {
         if (next != null) {
             long deadline = System.currentTimeMillis() + next.getLimitedTime() * 1000;
             questionRedisService.setQuestionDeadline(pinCode, next.getId(), deadline);
-            questionRedisService.setQuestionStartTime(pinCode, next.getId(), next.getLimitedTime() * 10000);
+            questionRedisService.setQuestionStartTime(pinCode, next.getId(), (next.getLimitedTime() + 10) * 1000);
             allSessions.keySet().forEach(sessionId -> {
                 messagingTemplate.convertAndSendToUser(
                         sessionId.toString(),

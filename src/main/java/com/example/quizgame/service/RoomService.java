@@ -71,7 +71,6 @@ public class RoomService {
 
         participantRepo.save(participant);
 
-
         room.getParticipants().add(participant);
 
         return RoomResponse.from(savedRoom, clientSessionId);
@@ -82,8 +81,10 @@ public class RoomService {
                 .orElseThrow(() -> new RuntimeException("Phòng không tồn tại hoặc đã bắt đầu"));
         List<ParticipantDTO> participants = room.getParticipants().stream()
                 .filter(p -> !p.isHost())
-                .map(p -> new ParticipantDTO(p.getUser().getId(), p.getUser().getFirstname(), p.getUser().getAvatar(),false))
-                .toList();;
+                .map(p -> new ParticipantDTO(p.getUser().getId(), p.getUser().getFirstname(), p.getUser().getAvatar(),
+                        false))
+                .toList();
+        ;
         if (participantRepo.existsByUserAndRoomStartedAtIsNull(user)) {
             throw new RuntimeException("Bạn đang ở trong một phòng khác.");
         }
@@ -98,75 +99,82 @@ public class RoomService {
         p.setHost(false);
         p.setClientSessionId(clientSessionId);
         participantRepo.save(p);
+        room.getParticipants().add(p);
         userService.increaseExp(user, 10); // Cộng 10 EXP mỗi lần tham gia
         userRepository.save(user);
 
         messagingTemplate.convertAndSend("/topic/room/" + room.getId(), getParticipants(room));
+
+        // gửi danh sách không phải là host
         return RoomJoinResponse.from(room, clientSessionId, participants);
     }
 
-        public List<ParticipantDTO> startRoom(Long roomId, User user) {
-            Room room = roomRepo.findById(roomId)
-                    .orElseThrow(() -> new RuntimeException("Phòng không tồn tại"));
+    public List<ParticipantDTO> startRoom(Long roomId, User user) {
+        Room room = roomRepo.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("Phòng không tồn tại"));
 
-            RoomParticipant participant = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
-                    .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này"));
+        RoomParticipant participant = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
+                .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này"));
 
-            if (!participant.isHost()) {
-                throw new RuntimeException("Chỉ chủ phòng mới được bắt đầu trò chơi");
-            }
-
-            if (room.getStartedAt() != null) {
-                throw new RuntimeException("Phòng đã được bắt đầu");
-            }
-
-            room.setStartedAt(LocalDateTime.now());
-            roomRepo.save(room);
-
-            Long quizId = room.getQuiz().getId();
-
-            final int currentIndex = 0;
-            questionRedisService.setQuizIdByPinCode(room.getPinCode(), quizId);
-            List<QuestionResponse> questions = questionRedisService.getQuestionsByQuizId(quizId);
-            questionRedisService.setCurrentQuestionIndex(room.getPinCode(), currentIndex);
-            questionRedisService.setCurrentQuestionId(room.getPinCode(), questions.get(currentIndex).getId());
-
-
-            // Tạo dữ liệu GameRanking cho từng người chơi trong phòng
-            List<RoomParticipant> participants = room.getParticipants();
-            List<GameRanking> rankings = new ArrayList<>();
-
-            for (RoomParticipant p : participants) {
-                if (!p.isHost()) {
-                    GameRanking r = new GameRanking();
-                    r.setRoom(room);
-                    r.setUser(p.getUser());
-                    r.setScore(0);
-                    r.setRanking(0);
-                    rankings.add(r);
-                }
-            }
-            questionRedisService.setCurrentQuestionIndex(room.getPinCode(), 0);
-            questionRedisService.lockRoomAndCommitCards(room.getPinCode());
-            gameRankingRepo.saveAll(rankings);
-
-
-            boolean isQuestionLast = currentIndex == (questions.size() - 1);
-
-            log.info(">>> SEND FIRST QUESTION: roomId={}, questionId={}, question='{}'",
-                    roomId, QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(currentIndex), isQuestionLast).getId(), QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(currentIndex), isQuestionLast).getContent());
-            messagingTemplate.convertAndSend("/topic/room/" + roomId, QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(questions.get(currentIndex), isQuestionLast));
-            long deadline = System.currentTimeMillis() + questions.get(currentIndex).getLimitedTime() * 1000;
-            questionRedisService.setQuestionDeadline(room.getPinCode(), questions.get(currentIndex).getId(), deadline);
-            questionRedisService.setQuestionStartTime(room.getPinCode(),questions.get(currentIndex).getId(), questions.get(currentIndex).getLimitedTime() * 10000);
-            // Trả về danh sách người chơi KHÔNG phải host
-            return participants.stream()
-                    .filter(p -> !p.isHost())
-                    .map(p -> new ParticipantDTO(p.getUser().getId(), p.getUser().getFirstname(), p.getAvatar(),false))
-                    .toList();
+        if (!participant.isHost()) {
+            throw new RuntimeException("Chỉ chủ phòng mới được bắt đầu trò chơi");
         }
 
-    public boolean isHostRoom (Long roomId, User user) {
+        if (room.getStartedAt() != null) {
+            throw new RuntimeException("Phòng đã được bắt đầu");
+        }
+
+        room.setStartedAt(LocalDateTime.now());
+        roomRepo.save(room);
+
+        Long quizId = room.getQuiz().getId();
+
+        final int currentIndex = 0;
+        questionRedisService.setQuizIdByPinCode(room.getPinCode(), quizId);
+        List<QuestionResponse> questions = questionRedisService.getQuestionsByQuizId(quizId);
+        questionRedisService.setCurrentQuestionIndex(room.getPinCode(), currentIndex);
+        questionRedisService.setCurrentQuestionId(room.getPinCode(), questions.get(currentIndex).getId());
+
+        // Tạo dữ liệu GameRanking cho từng người chơi trong phòng
+        List<RoomParticipant> participants = room.getParticipants();
+        List<GameRanking> rankings = new ArrayList<>();
+
+        for (RoomParticipant p : participants) {
+            if (!p.isHost()) {
+                GameRanking r = new GameRanking();
+                r.setRoom(room);
+                r.setUser(p.getUser());
+                r.setScore(0);
+                r.setRanking(0);
+                rankings.add(r);
+            }
+        }
+        questionRedisService.setCurrentQuestionIndex(room.getPinCode(), 0);
+        questionRedisService.lockRoomAndCommitCards(room.getPinCode());
+        gameRankingRepo.saveAll(rankings);
+
+        boolean isQuestionLast = currentIndex == (questions.size() - 1);
+
+        log.info(">>> SEND FIRST QUESTION: roomId={}, questionId={}, question='{}'",
+                roomId,
+                QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(
+                        questions.get(currentIndex), isQuestionLast).getId(),
+                QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(
+                        questions.get(currentIndex), isQuestionLast).getContent());
+        messagingTemplate.convertAndSend("/topic/room/" + roomId, QuestionResponseToParticipant
+                .fromQuestionResponseToQuestionResponseToParticipant(questions.get(currentIndex), isQuestionLast));
+        long deadline = System.currentTimeMillis() + questions.get(currentIndex).getLimitedTime() * 1000;
+        questionRedisService.setQuestionDeadline(room.getPinCode(), questions.get(currentIndex).getId(), deadline);
+        questionRedisService.setQuestionStartTime(room.getPinCode(), questions.get(currentIndex).getId(),
+                (questions.get(currentIndex).getLimitedTime() + 10) * 1000);
+        // Trả về danh sách người chơi KHÔNG phải host
+        return participants.stream()
+                .filter(p -> !p.isHost())
+                .map(p -> new ParticipantDTO(p.getUser().getId(), p.getUser().getFirstname(), p.getAvatar(), false))
+                .toList();
+    }
+
+    public boolean isHostRoom(Long roomId, User user) {
         Room room = roomRepo.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Phòng không tồn tại"));
 
@@ -180,26 +188,46 @@ public class RoomService {
         RoomParticipant p = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
                 .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này."));
 
-        Room room = roomRepo.findById(roomId).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với roomId"));
+        Room room = roomRepo.findById(roomId)
+                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với roomId"));
         roomParticipantRedisService.removeClientSession(room.getPinCode(), p.getClientSessionId());
         participantRepo.delete(p);
-        messagingTemplate.convertAndSend("/topic/room/" + roomId, getParticipants(p.getRoom()));
+        messagingTemplate.convertAndSend("/topic/room/" + room.getPinCode(), getParticipants(p.getRoom()));
     }
 
     public void kickUser(User host, Long roomId, Long targetId) {
         RoomParticipant hostP = participantRepo.findByRoomIdAndUserIdAndRoom_StartedAtIsNull(roomId, host.getId())
                 .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng hoặc không phải chủ phòng."));
 
-        if (!hostP.isHost()) throw new RuntimeException("Bạn không phải chủ phòng.");
+        if (!hostP.isHost())
+            throw new RuntimeException("Bạn không phải chủ phòng.");
 
         RoomParticipant target = participantRepo.findByRoomIdAndUserIdAndRoom_StartedAtIsNull(roomId, targetId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng trong phòng."));
-        Room room = roomRepo.findById(roomId).orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với roomId"));
+        Room room = roomRepo.findById(roomId)
+                .orElseThrow(() -> new NoSuchElementException("Không tìm thấy phòng tương ứng với roomId"));
+
+        // Gửi thông báo kick riêng cho user bị kick trước khi xóa session
+        String clientSessionId = target.getClientSessionId();
+        if (clientSessionId != null) {
+            System.out.println("=== KICK USER DEBUG ===");
+            System.out.println("Sending kick message to clientSessionId: " + clientSessionId);
+            System.out.println("Target user: " + target.getUser().getFirstname());
+
+            messagingTemplate.convertAndSendToUser(
+                    clientSessionId,
+                    "/queue/kick",
+                    "Bạn đã bị kick khỏi phòng bởi chủ phòng!");
+
+            System.out.println("Kick message sent successfully");
+        } else {
+            System.out.println("WARNING: clientSessionId is null, cannot send kick message");
+        }
+
         roomParticipantRedisService.removeClientSession(room.getPinCode(), target.getClientSessionId());
         participantRepo.delete(target);
-        messagingTemplate.convertAndSend("/topic/room/" + roomId, getParticipants(hostP.getRoom()));
+        messagingTemplate.convertAndSend("/topic/room/" + room.getPinCode(), getParticipants(hostP.getRoom()));
     }
-
 
     public List<ParticipantDTO> getParticipantsByRoom(Long roomId, User user) {
         // Kiểm tra user có ở trong phòng không
@@ -209,11 +237,9 @@ public class RoomService {
         return getParticipants(room);
     }
 
-
     private List<ParticipantDTO> getParticipants(Room room) {
-        return room.getParticipants().stream().map(rp ->
-                new ParticipantDTO(rp.getUser().getId(), rp.getUser().getFirstname(),rp.getAvatar(), rp.isHost())
-        ).toList();
+        return room.getParticipants().stream().map(rp -> new ParticipantDTO(rp.getUser().getId(),
+                rp.getUser().getFirstname(), rp.getAvatar(), rp.isHost())).toList();
     }
 
     public Room getRoomById(Long roomId) {
@@ -259,8 +285,7 @@ public class RoomService {
                 saved.getId(),
                 saved.getUser().getFirstname(),
                 saved.getAvatar(),
-                saved.isHost()
-        );
+                saved.isHost());
     }
 
 }

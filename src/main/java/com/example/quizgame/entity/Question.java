@@ -19,9 +19,13 @@ public class Question {
     private String content;
     @Column(columnDefinition = "LONGTEXT")
     private String description;
+    @Column(name = "answera")
     private String answerA;
+    @Column(name = "answerb")
     private String answerB;
+    @Column(name = "answerc")
     private String answerC;
+    @Column(name = "answerd")
     private String answerD;
     @Column(columnDefinition = "LONGTEXT")
     private String imageUrl;

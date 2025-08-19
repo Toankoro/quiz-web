@@ -1,12 +1,10 @@
 package com.example.quizgame.entity;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Getter
@@ -20,16 +18,14 @@ public class RoomParticipant implements Serializable {
     @JoinColumn(name = "room_id")
     private Room room;
 
-    @ManyToOne private User user;
+    @ManyToOne
+    private User user;
 
     private boolean isHost;
 
     @Lob
     @Column(columnDefinition = "LONGTEXT")
     private String avatar;
-
-    @OneToMany(mappedBy = "roomParticipant", cascade = CascadeType.ALL)
-    private List<PlayerAnswer> answers = new ArrayList<>();
 
     private String clientSessionId;
 
