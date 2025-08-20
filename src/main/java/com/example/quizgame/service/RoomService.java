@@ -155,14 +155,8 @@ public class RoomService {
 
         boolean isQuestionLast = currentIndex == (questions.size() - 1);
 
-        log.info(">>> SEND FIRST QUESTION: roomId={}, questionId={}, question='{}'",
-                roomId,
-                QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(
-                        questions.get(currentIndex), isQuestionLast).getId(),
-                QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(
-                        questions.get(currentIndex), isQuestionLast).getContent());
         messagingTemplate.convertAndSend("/topic/room/" + roomId, QuestionResponseToParticipant
-                .fromQuestionResponseToQuestionResponseToParticipant(questions.get(currentIndex), isQuestionLast));
+                .fromQuestionResponseToQuestionResponseToParticipant(questions.get(currentIndex), isQuestionLast, 1, questions.size()));
         long deadline = System.currentTimeMillis() + questions.get(currentIndex).getLimitedTime() * 1000;
         questionRedisService.setQuestionDeadline(room.getPinCode(), questions.get(currentIndex).getId(), deadline);
         questionRedisService.setQuestionStartTime(room.getPinCode(), questions.get(currentIndex).getId(),

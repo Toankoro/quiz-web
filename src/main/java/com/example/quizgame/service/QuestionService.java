@@ -164,7 +164,7 @@ public class QuestionService {
 
         questionRedisService.setCurrentQuestionId(pinCode, next.getId());
         questionRedisService.setCurrentQuestionIndex(pinCode, currentIndex + 1);
-        return QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(next, isLastQuestion);
+        return QuestionResponseToParticipant.fromQuestionResponseToQuestionResponseToParticipant(next, isLastQuestion, currentIndex + 1, questions.size());
     }
 
 
