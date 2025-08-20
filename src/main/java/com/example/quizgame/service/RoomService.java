@@ -1,6 +1,7 @@
 package com.example.quizgame.service;
 
 import com.example.quizgame.dto.question.QuestionResponse;
+import com.example.quizgame.dto.rank.GameRankingDTO;
 import com.example.quizgame.dto.question.QuestionResponseToParticipant;
 import com.example.quizgame.dto.room.ParticipantDTO;
 import com.example.quizgame.dto.room.RoomJoinResponse;
@@ -9,7 +10,6 @@ import com.example.quizgame.dto.user.UserProfileUpdateRequest;
 import com.example.quizgame.entity.*;
 import com.example.quizgame.qr.QRCodeGenerator;
 import com.example.quizgame.reponsitory.*;
-import com.example.quizgame.security.JwtUtil;
 import com.example.quizgame.service.redis.QuestionRedisService;
 import com.example.quizgame.service.redis.RoomParticipantRedisService;
 import jakarta.transaction.Transactional;
@@ -45,6 +45,7 @@ public class RoomService {
     private final GameRankingRepository gameRankingRepo;
     private final RedisTemplate<String, Object> redisTemplate;
     private final RoomParticipantRepository roomParticipantRepository;
+    private final GameRankingService gameRankingService;
 
     public RoomResponse createRoom(Long quizId, User host) {
         if (participantRepo.existsByUserAndRoomStartedAtIsNull(host)) {
@@ -285,6 +286,42 @@ public class RoomService {
                 saved.getUser().getFirstname(),
                 saved.getAvatar(),
                 saved.isHost());
+    }
+
+    @Transactional
+    public List<GameRankingDTO> endRoom(Long roomId, User user) {
+        Room room = roomRepo.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("Phòng không tồn tại"));
+
+        RoomParticipant participant = participantRepo.findByRoomIdAndUserId(roomId, user.getId())
+                .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này"));
+
+        if (!participant.isHost()) {
+            throw new AccessDeniedException("Chỉ chủ phòng mới được kết thúc trò chơi");
+        }
+
+        if (room.getEndedAt() == null) {
+            room.setEndedAt(java.time.LocalDateTime.now());
+            roomRepo.save(room);
+        }
+
+        // Tính toán bảng xếp hạng cuối cùng
+        List<GameRankingDTO> finalRanking = gameRankingService.getRanking(room);
+
+        // Phát sự kiện phòng đã kết thúc cho tất cả người chơi trong phòng
+        messagingTemplate.convertAndSend("/topic/room/" + roomId + "/ended", finalRanking);
+
+        // Dọn dẹp trạng thái Redis liên quan tới phòng
+        try {
+            String pinCode = room.getPinCode();
+            questionRedisService.deleteQuestionDeadline(pinCode);
+            questionRedisService.clearAllCardsInRoom(pinCode);
+            roomParticipantRedisService.setRoomHistoryExpire(pinCode, 100, TimeUnit.MINUTES);
+            roomParticipantRedisService.removeAllSessions(pinCode);
+        } catch (Exception e) {
+            log.warn("Lỗi khi dọn dẹp Redis khi kết thúc phòng {}: {}", roomId, e.getMessage());
+        }
+        return finalRanking;
     }
 
 }
