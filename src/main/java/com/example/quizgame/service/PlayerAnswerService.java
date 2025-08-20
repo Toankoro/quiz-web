@@ -3,6 +3,7 @@ package com.example.quizgame.service;
 import com.example.quizgame.dto.answer.AnswerResult;
 import com.example.quizgame.dto.answer.HistoryDetailDTO;
 import com.example.quizgame.dto.answer.HistorySummaryDTO;
+import com.example.quizgame.dto.answer.PlayHistoryDTO;
 import com.example.quizgame.dto.question.QuestionResponse;
 import com.example.quizgame.entity.*;
 import com.example.quizgame.reponsitory.PlayerAnswerRepository;
@@ -15,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -200,6 +202,20 @@ public class PlayerAnswerService {
         } else {
             System.out.println("Tất cả PlayerAnswer đã có đầy đủ thông tin user và room.");
         }
+    }
+
+    public List<PlayHistoryDTO> getPlayHistory(Long userId, String name, LocalDate date) {
+        if (date != null) {
+            return playerAnswerRepository.findHistoryWithDate(userId, name, date);
+        } else {
+            return playerAnswerRepository.findHistoryNoDate(userId, name);
+        }
+    }
+
+    // Xóa lịch sử chơi của user trong một room
+    @Transactional
+    public void deleteHistoryByRoom(Long userId, Long roomId) {
+        playerAnswerRepository.deleteByUserAndRoom(userId, roomId);
     }
 
 }
