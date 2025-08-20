@@ -21,8 +21,10 @@ public class QuestionResponseToParticipant {
     private Integer score;
     private boolean questionLast;
     private long startTime;
+    private Integer currentQuestion;
+    private Integer totalQuestion;
 
-    public static QuestionResponseToParticipant fromQuestionResponseToQuestionResponseToParticipant(QuestionResponse questionResponse, boolean questionLast) {
+    public static QuestionResponseToParticipant fromQuestionResponseToQuestionResponseToParticipant(QuestionResponse questionResponse, boolean questionLast, Integer currentQuestion, Integer totalQuestion) {
         return QuestionResponseToParticipant.builder()
                 .id(questionResponse.getId())
                 .content(questionResponse.getContent())
@@ -36,6 +38,8 @@ public class QuestionResponseToParticipant {
                 .limitedTime(questionResponse.getLimitedTime() != null ? questionResponse.getLimitedTime() : 20)
                 .questionLast(questionLast)
                 .startTime(System.currentTimeMillis())
+                .currentQuestion(currentQuestion)
+                .totalQuestion(totalQuestion)
                 .build();
     }
 }
