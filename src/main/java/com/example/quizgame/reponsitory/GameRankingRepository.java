@@ -14,7 +14,7 @@ import java.util.Optional;
 
 public interface GameRankingRepository extends JpaRepository<GameRanking, Long> {
     Optional<GameRanking> findByRoomAndUser(Room room, User user);
-
+    GameRanking findByRoom_IdAndUser_Id(Long roomId, Long userId);
     @Query("SELECT g FROM GameRanking g JOIN FETCH g.user WHERE g.room = :room ORDER BY g.score DESC")
     List<GameRanking> findByRoomOrderByScoreDescWithUser(@Param("room") Room room);
 
