@@ -1,9 +1,7 @@
 package com.example.quizgame.entity;
 
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -11,14 +9,23 @@ import java.time.LocalDateTime;
 @Setter
 @Entity
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Table(uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "user_id", "room_id", "question_id", "client_session_id" })
+})
 public class PlayerAnswer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "room_participant_id")
-    private RoomParticipant roomParticipant;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @ManyToOne
+    @JoinColumn(name = "room_id", nullable = false)
+    private Room room;
 
     private String clientSessionId;
 

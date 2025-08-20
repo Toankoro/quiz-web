@@ -1,33 +1,31 @@
 package com.example.quizgame.dto.question;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.List;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
+@Getter
+@Setter
 public class ReconnectResponse {
-    private String clientSessionId;
-    private Long currentQuestionId;
-    private String questionContent;
-    private List<String> answers;
-    private long startTime;
-    private int timeLimit;
-    private boolean hasAnswered;
+    private Long questionId;
+    private QuestionResponse currentQuestion;
+    private long remainingTime;
+    private boolean alreadyAnswered;
+    private Set<String> availableCards;
 
-    public static ReconnectResponse noCurrentQuestion(String clientSessionId) {
-        return new ReconnectResponse(
-                clientSessionId,
-                null,
-                null,
-                null,
-                0L,
-                0,
-                false
-        );
+    public ReconnectResponse(Long questionId,
+                             QuestionResponse currentQuestion,
+                             long remainingTime,
+                             boolean alreadyAnswered,
+                             Set<String> availableCards) {
+        this.questionId = questionId;
+        this.currentQuestion = currentQuestion;
+        this.remainingTime = remainingTime;
+        this.alreadyAnswered = alreadyAnswered;
+        this.availableCards = availableCards;
     }
 }
 

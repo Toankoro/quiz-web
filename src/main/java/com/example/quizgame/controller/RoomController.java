@@ -2,9 +2,9 @@ package com.example.quizgame.controller;
 
 import com.example.quizgame.dto.chat.CustomUserDetails;
 import com.example.quizgame.dto.room.ParticipantDTO;
+import com.example.quizgame.dto.rank.GameRankingDTO;
 import com.example.quizgame.dto.user.UserProfileUpdateRequest;
 import com.example.quizgame.entity.Room;
-import com.example.quizgame.entity.RoomParticipant;
 import com.example.quizgame.service.RoomService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,38 +25,36 @@ public class RoomController {
 
     @PostMapping("/create")
     public ResponseEntity<?> createRoom(@RequestParam Long quizId,
-                                        @AuthenticationPrincipal CustomUserDetails userDetails) {
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ResponseEntity.ok(roomService.createRoom(quizId, userDetails.getUser()));
     }
 
     @PostMapping("/join")
     public ResponseEntity<?> joinRoom(@RequestParam String pin,
-                                      @AuthenticationPrincipal CustomUserDetails userDetails) {
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ResponseEntity.ok(roomService.joinRoom(pin, userDetails.getUser()));
     }
 
     @PostMapping("/leave/{roomId}")
     public ResponseEntity<?> leaveRoom(@PathVariable Long roomId,
-                                       @AuthenticationPrincipal CustomUserDetails userDetails) {
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
         roomService.leaveRoom(userDetails.getUser(), roomId);
         return ResponseEntity.ok("Đã thoát phòng");
     }
 
     @DeleteMapping("/kick/{roomId}/{userId}")
     public ResponseEntity<?> kickUser(@PathVariable Long roomId,
-                                      @PathVariable Long userId,
-                                      @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
+            @PathVariable Long userId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
         roomService.kickUser(userDetails.getUser(), roomId, userId);
         return ResponseEntity.ok("Đã xóa người chơi");
     }
 
     @GetMapping("/participants")
     public ResponseEntity<?> listParticipants(@RequestParam Long roomId,
-                                              @AuthenticationPrincipal CustomUserDetails userDetails) {
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ResponseEntity.ok(roomService.getParticipantsByRoom(roomId, userDetails.getUser()));
     }
-
 
     @GetMapping("/{roomId}/qrcode")
     public ResponseEntity<Map<String, String>> getRoomQRCode(@PathVariable Long roomId) {
@@ -66,19 +64,21 @@ public class RoomController {
         response.put("qrCodeUrl", room.getQrCodeUrl());
         return ResponseEntity.ok(response);
     }
+
     @DeleteMapping("/{roomId}")
     public ResponseEntity<?> deleteRoom(@PathVariable Long roomId,
-                                        @AuthenticationPrincipal CustomUserDetails userDetails) {
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
         roomService.deleteRoomByHost(roomId, userDetails.getUser());
         return ResponseEntity.ok("Đã xóa phòng");
     }
 
     @PostMapping("/start/{roomId}")
     public ResponseEntity<?> startRoom(@PathVariable Long roomId,
-                                       @AuthenticationPrincipal CustomUserDetails userDetails) {
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
         List<ParticipantDTO> participants = roomService.startRoom(roomId, userDetails.getUser());
         return ResponseEntity.ok(participants);
     }
+
     @PutMapping("/{roomId}/avatar")
     public ResponseEntity<ParticipantDTO> updateAvatar(
             @PathVariable Long roomId,
@@ -92,5 +92,12 @@ public class RoomController {
         return ResponseEntity.ok(updated);
     }
 
+    @PostMapping("/{roomId}/end")
+    public ResponseEntity<List<GameRankingDTO>> endRoom(
+            @PathVariable Long roomId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        List<GameRankingDTO> finalRanking = roomService.endRoom(roomId, userDetails.getUser());
+        return ResponseEntity.ok(finalRanking);
+    }
 
 }

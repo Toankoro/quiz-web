@@ -21,11 +21,9 @@ public class Room {
     private String qrCodeUrl;
 
     @ManyToOne
-    private User host;
-
-    @ManyToOne
     private Quiz quiz;
 
+    @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;

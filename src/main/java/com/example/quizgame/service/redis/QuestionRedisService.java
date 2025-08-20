@@ -87,6 +87,7 @@ public class QuestionRedisService {
         if (keys != null && !keys.isEmpty()) {
             redisTemplate.delete(keys);
         }
+        redisTemplate.delete("card:locked:" + pinCode);
     }
 
     public void useCardForQuestion(String pinCode, String clientSessionId, Long questionId, SupportCardType cardType) {
@@ -204,6 +205,12 @@ public class QuestionRedisService {
         return questions;
     }
 
+    public void clearQuestionsCache(Long quizId) {
+        String redisKey = "quiz:" + quizId + ":questions:list";
+        redisTemplate.delete(redisKey);
+    }
+
+
 
     public QuestionResponse getQuestionById(Long quizId, Long questionId) {
         String redisKey = "quiz:" + quizId + ":questions:list";
@@ -241,19 +248,38 @@ public class QuestionRedisService {
     }
 
 
-
-
     // set, get startTime for question
-    public void setQuestionStartTime(String roomCode, Long questionId, long startTime) {
-        String key = "questionStartTime:" + roomCode;
-        redisTemplate.opsForHash().put(key, questionId.toString(), String.valueOf(startTime));
+    public void setQuestionStartTime(String roomCode, Long questionId, long durationMillis) {
+        String key = "question:start:" + roomCode + ":" + questionId;
+        long startTime = System.currentTimeMillis();
+        redisTemplate.opsForValue().set(key, startTime, durationMillis, TimeUnit.MILLISECONDS);
     }
 
+    // Lấy
     public long getQuestionStartTime(String roomCode, Long questionId) {
-        String key = "questionStartTime:" + roomCode;
-        Object value = redisTemplate.opsForHash().get(key, questionId.toString());
-        if (value == null) throw new RuntimeException("Start time not found for question");
+        String key = "question:start:" + roomCode + ":" + questionId;
+        Object value = redisTemplate.opsForValue().get(key);
+        if (value == null) throw new RuntimeException("Start time không có cho câu hỏi này");
         return Long.parseLong(value.toString());
     }
+
+
+    public void setQuestionDeadline(String pinCode, Long questionId, long durationMillis) {
+        String key = "question:deadline:" + pinCode + ":" + questionId;
+        long deadline = System.currentTimeMillis() + durationMillis;
+        redisTemplate.opsForValue().set(key, deadline, durationMillis + 5000, TimeUnit.MILLISECONDS);
+    }
+
+    public Long getQuestionDeadline(String pinCode, Long questionId) {
+        String key = "question:deadline:" + pinCode + ":" + questionId;
+        Object value = redisTemplate.opsForValue().get(key);
+        return value != null ? Long.valueOf(value.toString()) : null;
+    }
+
+    public void deleteQuestionDeadline(String pinCode) {
+        String key = "question:deadline:" + pinCode + ":*";
+        redisTemplate.delete(key);
+    }
+
 
 }

@@ -22,5 +22,5 @@ public interface RoomParticipantRepository extends JpaRepository<RoomParticipant
     Optional<List<RoomParticipant>> findByRoom_PinCode (String pinCode);
     Optional<RoomParticipant> findByRoom_PinCodeAndUser_Username(String pinCode, String username);
     Optional<RoomParticipant> findByRoom_PinCodeAndClientSessionId(String pinCode, String clientSessionId);
-
+    Optional<RoomParticipant> findByRoom_PinCodeAndUser_Id(String pinCode, Long userId);
 }
