@@ -58,15 +58,6 @@ public class PlayerAnswerController {
         return ResponseEntity.ok(playerAnswerService.getHistoryDetail(userId, roomId));
     }
 
-//    @DeleteMapping("/{roomId}")
-//    public ResponseEntity<String> deleteHistory(
-//            @PathVariable Long roomId,
-//            @AuthenticationPrincipal CustomUserDetails userDetails) {
-//        Long userId = userDetails.getId();
-//        playerAnswerService.deleteUserHistory(userId, roomId);
-//        return ResponseEntity.ok("Xóa lịch sử thành công");
-//    }
-
     // Endpoint để migrate dữ liệu cũ (chỉ dành cho admin)
     @PostMapping("/migrate")
     public ResponseEntity<String> migrateExistingData() {

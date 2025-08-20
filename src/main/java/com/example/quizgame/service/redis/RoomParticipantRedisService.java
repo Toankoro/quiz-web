@@ -135,6 +135,20 @@ public class RoomParticipantRedisService {
                 .collect(Collectors.toList());
     }
 
+    public void setRoomHistoryExpire(String pinCode, long timeout, TimeUnit unit) {
+        String pattern = "history:" + pinCode + ":*";
+        Set<String> keys = redisTemplate.keys(pattern);
+
+        if (keys != null && !keys.isEmpty()) {
+            for (String key : keys) {
+                redisTemplate.expire(key, timeout, unit);
+            }
+            log.info("Đã set expire={} {} cho {} history trong phòng {}", timeout, unit, keys.size(), pinCode);
+        } else {
+            log.info("Không có lịch sử nào trong phòng {} để set expire", pinCode);
+        }
+    }
+
     public void setHistoryExpire(String pinCode, String clientSessionId, long timeout, TimeUnit unit) {
         String key = getHistoryRoomParticipantKey(pinCode, clientSessionId);
         redisTemplate.expire(key, timeout, unit);
