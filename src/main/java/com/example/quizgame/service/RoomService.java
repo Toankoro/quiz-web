@@ -58,7 +58,6 @@ public class RoomService {
         Room room = new Room();
         room.setPinCode(pin);
         room.setQrCodeUrl(qrUrl);
-        room.setHost(host);
         room.setQuiz(quiz);
 
         Room savedRoom = roomRepo.save(room);
